@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  --background: #F1F7FF;
+  --foreground: #112D4E;
+}
+
+@theme {
+  --font-sans: "Kanit", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+* {
+  font-family: 'Kanit', sans-serif !important;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Kanit', sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 20px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animation for QR Reader */
+#qr-reader audio {
+  display: none;
+}
+#qr-reader__scan_region {
+  background-color: white !important;
+}
+#qr-reader__dashboard_section_csr button {
+  padding: 10px 20px;
+  background-color: #3b82f6;
+  color: white;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  margin: 10px;
+  cursor: pointer;
+  font-family: 'Kanit', sans-serif !important;
+}
+#qr-reader__dashboard_section_csr button:hover {
+  background-color: #2563eb;
+}
