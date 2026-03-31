@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthProvider"; // Assuming it should be AuthContext, wait, let me check the existing import.
-// Existing was imports { AuthProvider } from "@/context/AuthContext";
 import { AuthProvider as GlobalAuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "ระบบจองห้องนันทนาการ อบจ.พะเยา",
-  description: "ระบบจองห้องพะเยาคอนเซนเตอร์",
+  description: "ระบบจองห้องพักผ่อนและจัดการคิวแบบ Real-time",
 };
 
 export default function RootLayout({

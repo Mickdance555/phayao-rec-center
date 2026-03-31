@@ -3,9 +3,6 @@
 :root {
   --background: #F1F7FF;
   --foreground: #112D4E;
-}
-
-@theme {
   --font-sans: "Kanit", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }

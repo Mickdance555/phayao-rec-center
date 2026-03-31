@@ -78,8 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Error signing in with Google", error);
+    } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        alert("กรุณาดำเนินการเข้าสู่ระบบให้เสร็จสิ้น");
+      } else {
+        console.error("Error signing in with Google:", error);
+      }
       setLoading(false);
     }
   };
