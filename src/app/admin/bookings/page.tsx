@@ -15,7 +15,11 @@ import {
   AlertTriangle,
   User as UserIcon,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Eye,
+  Users as UsersIcon,
+  X,
+  Info
 } from "lucide-react";
 import { 
   collection, 
@@ -43,6 +47,7 @@ export default function AdminBookingsPage() {
   
   // Delete confirmation modal
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [selectedBookingDetails, setSelectedBookingDetails] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -61,7 +66,10 @@ export default function AdminBookingsPage() {
       const querySnapshot = await getDocs(q);
       const bookingData = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        start: (doc.data().startTime as Timestamp).toDate(),
+        end: (doc.data().endTime as Timestamp).toDate(),
+        created: (doc.data().createdAt as Timestamp).toDate()
       }));
       setBookings(bookingData);
     } catch (e) {
@@ -167,61 +175,70 @@ export default function AdminBookingsPage() {
                          </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                         {filteredBookings.map((booking) => {
-                            const startTime = (booking.startTime as Timestamp).toDate();
-                            const endTime = (booking.endTime as Timestamp).toDate();
-                            
-                            return (
-                               <tr key={booking.id} className="hover:bg-slate-50/50 transition-colors group">
-                                  <td className="px-8 py-6">
-                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 font-black">
-                                           {booking.userName?.charAt(0) || 'U'}
-                                        </div>
-                                        <div>
-                                           <p className="font-black text-slate-800 text-lg">{booking.userName}</p>
-                                           <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-                                              <UserIcon size={12} /> {booking.memberId}
-                                           </div>
-                                        </div>
-                                     </div>
-                                  </td>
-                                  <td className="px-8 py-6">
-                                     <div className="flex items-center gap-3">
-                                        <CalendarIcon size={16} className="text-slate-300" />
-                                        <div>
-                                           <p className="font-black text-slate-700">{format(startTime, 'd MMMM yyyy', { locale: th })}</p>
-                                           <p className="text-xs font-bold text-blue-500 uppercase tracking-widest">{format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')} น.</p>
-                                        </div>
-                                     </div>
-                                  </td>
-                                  <td className="px-8 py-6">
-                                     {booking.status === 'confirmed' ? (
-                                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-xs font-black border border-blue-100">
-                                           ยืนยันแล้ว
-                                        </span>
-                                     ) : booking.status === 'checked-in' ? (
-                                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-green-50 text-green-600 rounded-full text-xs font-black border border-green-100">
-                                           <CheckCircle2 size={12} /> เข้าใช้งานแล้ว
-                                        </span>
-                                     ) : (
-                                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-slate-100 text-slate-500 rounded-full text-xs font-black">
-                                           {booking.status}
-                                        </span>
-                                     )}
-                                  </td>
-                                  <td className="px-8 py-6 text-right">
-                                     <button 
-                                      onClick={() => setConfirmDelete(booking.id)}
-                                      className="p-4 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm shadow-red-100 border border-red-50"
-                                      title="ยกเลิกการจอง"
-                                     >
-                                        <Trash2 size={20} />
-                                     </button>
-                                  </td>
-                               </tr>
-                            );
-                         })}
+                          {filteredBookings.map((booking) => {
+                             const startTime = (booking.startTime as Timestamp).toDate();
+                             const endTime = (booking.endTime as Timestamp).toDate();
+                             
+                             return (
+                                <tr key={booking.id} className="hover:bg-slate-50/50 transition-colors group">
+                                   <td className="px-8 py-6">
+                                      <div className="flex items-center gap-4">
+                                         <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 font-black">
+                                            {booking.userName?.charAt(0) || 'U'}
+                                         </div>
+                                         <div>
+                                            <p className="font-black text-slate-800 text-lg">{booking.userName}</p>
+                                            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                                               <UserIcon size={12} /> {booking.memberId}
+                                            </div>
+                                         </div>
+                                      </div>
+                                   </td>
+                                   <td className="px-8 py-6">
+                                      <div className="flex items-center gap-3">
+                                         <CalendarIcon size={16} className="text-slate-300" />
+                                         <div>
+                                            <p className="font-black text-slate-700">{format(startTime, 'd MMMM yyyy', { locale: th })}</p>
+                                            <p className="text-xs font-bold text-blue-500 uppercase tracking-widest">{format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')} น.</p>
+                                         </div>
+                                      </div>
+                                   </td>
+                                   <td className="px-8 py-6">
+                                      {booking.status === 'confirmed' ? (
+                                         <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-xs font-black border border-blue-100">
+                                            ยืนยันแล้ว
+                                         </span>
+                                      ) : booking.status === 'checked-in' ? (
+                                         <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-green-50 text-green-600 rounded-full text-xs font-black border border-green-100">
+                                            <CheckCircle2 size={12} /> เข้าใช้งานแล้ว
+                                         </span>
+                                      ) : (
+                                         <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-slate-100 text-slate-500 rounded-full text-xs font-black">
+                                            {booking.status}
+                                         </span>
+                                      )}
+                                   </td>
+                                   <td className="px-8 py-6 text-right">
+                                      <div className="flex items-center justify-end gap-3">
+                                         <button 
+                                          onClick={() => setSelectedBookingDetails(booking)}
+                                          className="p-4 bg-blue-50 text-blue-500 rounded-2xl hover:bg-blue-500 hover:text-white transition-all shadow-sm shadow-blue-100 border border-blue-50"
+                                          title="ดูรายละเอียด"
+                                         >
+                                            <Eye size={20} />
+                                         </button>
+                                         <button 
+                                          onClick={() => setConfirmDelete(booking.id)}
+                                          className="p-4 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm shadow-red-100 border border-red-50"
+                                          title="ยกเลิกการจอง"
+                                         >
+                                            <Trash2 size={20} />
+                                         </button>
+                                      </div>
+                                   </td>
+                                </tr>
+                             );
+                          })}
                       </tbody>
                    </table>
                 </div>
@@ -262,6 +279,120 @@ export default function AdminBookingsPage() {
                     </button>
                  </div>
               </div>
+           </div>
+        </div>
+      )}
+
+      {/* Booking Detail Modal */}
+      {selectedBookingDetails && (
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+           <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500 flex flex-col max-h-[90vh]">
+              <header className="p-8 bg-slate-900 text-white flex justify-between items-center shrink-0">
+                 <div>
+                    <h2 className="text-2xl font-black">รายละเอียดการจอง</h2>
+                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest opacity-80">Full Booking Information</p>
+                 </div>
+                 <button 
+                   onClick={() => setSelectedBookingDetails(null)}
+                   className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all"
+                 >
+                   <X size={20} />
+                 </button>
+              </header>
+
+              <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                          <CalendarIcon size={12} className="text-blue-500" /> วันที่เข้าใช้
+                       </p>
+                       <p className="text-lg font-black text-slate-800">
+                          {format(selectedBookingDetails.start, 'd MMM yy', { locale: th })}
+                       </p>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                          <Clock size={12} className="text-blue-500" /> ช่วงเวลา
+                       </p>
+                       <p className="text-lg font-black text-slate-800">
+                          {format(selectedBookingDetails.start, 'HH:mm')} - {format(selectedBookingDetails.end, 'HH:mm')} น.
+                       </p>
+                    </div>
+                 </div>
+
+                 <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <UsersIcon size={14} className="text-blue-500" /> ผู้เข้าใช้งาน ({selectedBookingDetails.totalAttendees || selectedBookingDetails.attendees?.length || 1})
+                       </h3>
+                       <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-wider">
+                          Total: {selectedBookingDetails.totalAttendees || selectedBookingDetails.attendees?.length || 1} people
+                       </span>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-[2.5rem] border border-slate-100 overflow-hidden">
+                       <div className="p-6 space-y-4">
+                          {selectedBookingDetails.attendees && selectedBookingDetails.attendees.length > 0 ? (
+                             selectedBookingDetails.attendees.map((at: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between pb-3 border-b border-slate-200/50 last:border-0 last:pb-0">
+                                   <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
+                                         <UserIcon size={14} />
+                                      </div>
+                                      <div>
+                                         <p className="text-sm font-black text-slate-700 leading-tight">{at.name}</p>
+                                         <p className="text-[10px] font-bold text-slate-400 tracking-tight">{at.phone || 'ไม่ระบุเบอร์โทร'}</p>
+                                      </div>
+                                   </div>
+                                   {at.isMember && (
+                                      <span className="text-[8px] font-black bg-blue-500 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">Member</span>
+                                   )}
+                                </div>
+                             ))
+                          ) : (
+                             <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
+                                   <UserIcon size={14} />
+                                </div>
+                                <p className="text-sm font-black text-slate-700">{selectedBookingDetails.userName}</p>
+                             </div>
+                          )}
+                       </div>
+                    </div>
+                 </div>
+
+                 {selectedBookingDetails.groupType && selectedBookingDetails.groupType !== 'สมาชิกทั่วไป' && (
+                    <div className="bg-orange-50 p-6 rounded-[2rem] border border-orange-100">
+                       <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                          <ShieldCheck size={12} /> {selectedBookingDetails.groupType}
+                       </p>
+                       <p className="text-sm font-black text-orange-900">
+                          {selectedBookingDetails.groupName || 'ไม่ได้ระบุชื่อกลุ่ม'}
+                       </p>
+                    </div>
+                 )}
+
+                 <div className="pt-6 border-t border-slate-100">
+                    <div className="flex items-center justify-between text-slate-400">
+                       <p className="text-[10px] font-black uppercase tracking-widest">ทำรายการเมื่อ</p>
+                       <p className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
+                          {format(selectedBookingDetails.created, 'd MMM yyyy HH:mm:ss', { locale: th })}
+                       </p>
+                    </div>
+                    <p className="mt-4 text-[9px] font-bold text-slate-300 uppercase tracking-widest text-center">
+                       SESSION ID: {selectedBookingDetails.id}
+                    </p>
+                 </div>
+              </div>
+
+              <footer className="p-8 bg-slate-50 border-t border-slate-100 shrink-0">
+                 <button 
+                   onClick={() => setSelectedBookingDetails(null)}
+                   className="w-full py-4 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black text-xs hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
+                 >
+                   ปิดหน้าต่าง
+                 </button>
+              </footer>
            </div>
         </div>
       )}

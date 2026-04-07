@@ -16,7 +16,10 @@ import {
   XCircle,
   AlertTriangle,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Info,
+  Users as UsersIcon,
+  User as UserIcon
 } from "lucide-react";
 import { 
   collection, 
@@ -58,6 +61,7 @@ export default function HistoryPage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedDetailBooking, setSelectedDetailBooking] = useState<any>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   
   // Security Features
@@ -262,8 +266,19 @@ export default function HistoryPage() {
                        ชั้น 2 อบจ.พะเยา
                     </div>
                     {!isCancelled && (
-                       <div className="text-blue-600 font-black text-xs flex items-center gap-2 group-hover:translate-x-2 transition-transform">
-                          แตะเพื่อดู QR CODE <ChevronRight size={18} />
+                       <div className="flex items-center gap-4">
+                         <button 
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             setSelectedDetailBooking(booking);
+                           }}
+                           className="p-2 bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"
+                         >
+                           <Info size={16} /> รายละเอียด
+                         </button>
+                         <div className="text-blue-600 font-black text-xs flex items-center gap-2 group-hover:translate-x-2 transition-transform">
+                            แตะเพื่อดู QR CODE <ChevronRight size={18} />
+                         </div>
                        </div>
                     )}
                     {isCancelled && booking.cancelledAt && (
@@ -383,6 +398,108 @@ export default function HistoryPage() {
                     SESSION ID: {selectedBooking.id.substring(0, 8)}...
                  </p>
               </div>
+           </div>
+        </div>
+      )}
+      {/* Booking Detail Modal */}
+      {selectedDetailBooking && (
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+           <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500 flex flex-col max-h-[90vh]">
+              <header className="p-8 bg-blue-600 text-white flex justify-between items-center shrink-0">
+                 <div>
+                    <h2 className="text-2xl font-black">รายละเอียดการจอง</h2>
+                    <p className="text-blue-100 text-[10px] font-black uppercase tracking-widest opacity-80">Booking Details</p>
+                 </div>
+                 <button 
+                   onClick={() => setSelectedDetailBooking(null)}
+                   className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all"
+                 >
+                   <X size={20} />
+                 </button>
+              </header>
+
+              <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                          <Calendar size={12} className="text-blue-500" /> วันที่เข้าใช้
+                       </p>
+                       <p className="text-lg font-black text-slate-800">
+                          {format(selectedDetailBooking.start, 'd MMM yy', { locale: th })}
+                       </p>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                          <Clock size={12} className="text-blue-500" /> ช่วงเวลา
+                       </p>
+                       <p className="text-lg font-black text-slate-800">
+                          {format(selectedDetailBooking.start, 'HH:mm')} - {format(selectedDetailBooking.end, 'HH:mm')} น.
+                       </p>
+                    </div>
+                 </div>
+
+                 <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <UsersIcon size={14} className="text-blue-500" /> ผู้เข้าใช้งาน ({selectedDetailBooking.totalAttendees || selectedDetailBooking.attendees?.length || 1})
+                       </h3>
+                       <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-wider">
+                          Total: {selectedDetailBooking.totalAttendees || selectedDetailBooking.attendees?.length || 1} people
+                       </span>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-[2.5rem] border border-slate-100 overflow-hidden">
+                       <div className="p-6 space-y-4">
+                          {selectedDetailBooking.attendees && selectedDetailBooking.attendees.length > 0 ? (
+                             selectedDetailBooking.attendees.map((at: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between pb-3 border-b border-slate-200/50 last:border-0 last:pb-0">
+                                   <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
+                                         <UserIcon size={14} />
+                                      </div>
+                                      <div>
+                                         <p className="text-sm font-black text-slate-700 leading-tight">{at.name}</p>
+                                         <p className="text-[10px] font-bold text-slate-400 tracking-tight">{at.phone || 'ไม่ระบุเบอร์โทร'}</p>
+                                      </div>
+                                   </div>
+                                   {at.isMember && (
+                                      <span className="text-[8px] font-black bg-blue-500 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">Member</span>
+                                   )}
+                                </div>
+                             ))
+                          ) : (
+                             <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
+                                   <UserIcon size={14} />
+                                </div>
+                                <p className="text-sm font-black text-slate-700">{selectedDetailBooking.userName}</p>
+                             </div>
+                          )}
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="pt-6 border-t border-slate-100">
+                    <div className="flex items-center justify-between text-slate-400">
+                       <p className="text-[10px] font-black uppercase tracking-widest">ทำรายการเมื่อ</p>
+                       <p className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
+                          {format(selectedDetailBooking.created, 'd MMM yyyy HH:mm:ss', { locale: th })}
+                       </p>
+                    </div>
+                    <p className="mt-4 text-[9px] font-bold text-slate-300 uppercase tracking-widest text-center">
+                       SESSION ID: {selectedDetailBooking.id}
+                    </p>
+                 </div>
+              </div>
+
+              <footer className="p-8 bg-slate-50 border-t border-slate-100 shrink-0">
+                 <button 
+                   onClick={() => setSelectedDetailBooking(null)}
+                   className="w-full py-4 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black text-xs hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
+                 >
+                   ปิดหน้าต่าง
+                 </button>
+              </footer>
            </div>
         </div>
       )}
