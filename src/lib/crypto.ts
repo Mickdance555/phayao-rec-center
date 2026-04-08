@@ -21,6 +21,16 @@ export function maskIdCard(idCard: string): string {
 }
 
 /**
+ * Generates a verification signature for the QR Code to prevent forgery.
+ * Uses a combination of the bookingId, timestampBlock, and a portion of the user's UID.
+ */
+export async function signQR(bookingId: string, timestampBlock: number, uid: string): Promise<string> {
+    const data = `${bookingId}:${timestampBlock}:${uid.substring(0, 8)}`;
+    const hash = await hashSHA256(data);
+    return hash.substring(0, 12); // Use first 12 chars as semi-compact signature
+}
+
+/**
  * Masks a phone number (08X-XXX-XXXX)
  */
 export function maskPhone(phone: string): string {

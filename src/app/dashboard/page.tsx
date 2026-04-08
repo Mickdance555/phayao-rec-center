@@ -3,25 +3,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
-import { 
-  format, 
-  addMonths, 
-  subMonths, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isSameMonth, 
-  isSameDay,
-  addHours,
-  isBefore,
-  startOfDay,
-  endOfDay,
-  isAfter,
-  addDays
-} from "date-fns";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addHours, isBefore, startOfDay, endOfDay, isAfter, addDays, addMinutes } from "date-fns";
 import { th } from "date-fns/locale";
+import { QRCodeSVG } from "qrcode.react";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -38,7 +22,9 @@ import {
   AlertTriangle,
   User as UserIcon,
   Phone,
-  LayoutDashboard
+  LayoutDashboard,
+  MapPin,
+  QrCode
 } from "lucide-react";
 import { 
   collection, 
@@ -74,6 +60,8 @@ export default function DashboardPage() {
   const [showRulesModal, setShowRulesModal] = useState(true);
   const [step, setStep] = useState(1); // 1: Select Time, 2: Attendees Info
   const [isBookingLoading, setIsBookingLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeBooking, setActiveBooking] = useState<any>(null);
 
   // Attendees info
   const [attendees, setAttendees] = useState<any[]>([]);
@@ -82,14 +70,38 @@ export default function DashboardPage() {
     if (user && attendees.length === 0) {
       setAttendees([{ name: user.fullName, phone: user.phone || "", isMember: true }]);
     }
-  }, [user]);
+  }, [user, attendees.length]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+     if (bookings.length > 0 && user) {
+        const now = new Date();
+        const today = startOfDay(now);
+        // Find most relevant booking: Today, not cancelled, either happening now or coming up next
+        const todayBookings = bookings.filter(b => 
+           isSameDay(b.start, today) && 
+           b.userId === user.uid && 
+           b.status !== 'cancelled' &&
+           b.status !== 'completed'
+        ).sort((a, b) => a.start.getTime() - b.start.getTime());
+
+        const active = todayBookings.find(b => isAfter(b.end, now));
+        setActiveBooking(active || null);
+     } else {
+        setActiveBooking(null);
+     }
+  }, [bookings, user]);
 
   const handleAcceptRules = () => {
     setShowRulesModal(false);
   };
 
   const timeSlots = [
-    "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"
+    "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "15:30"
   ];
 
   useEffect(() => {
@@ -238,6 +250,15 @@ export default function DashboardPage() {
       start.setHours(h, m, 0, 0);
       const end = addHours(start, duration);
 
+      // Limit check: cannot book past 16:30
+      const limitTime = new Date(selectedDate);
+      limitTime.setHours(16, 30, 0, 0);
+      if (isAfter(end, limitTime)) {
+         alert("ขออภัย ไม่สามารถจองเกินเวลา 16:30 น. ได้");
+         setIsBookingLoading(false);
+         return;
+      }
+
       if (isSlotBooked(selectedDate, selectedTime)) { 
         alert("ขออภัย เวลานี้ถูกจองไปแล้วในขณะที่คุณกำลังทำรายการ"); 
         setIsModalOpen(false);
@@ -295,6 +316,80 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
       <Navbar />
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-12 sm:px-6 lg:px-8 mt-16 animate-in fade-in duration-700">
+          
+          {/* Active Booking & QR Code Section */}
+          {activeBooking && (
+             <div className="mb-12 grid lg:grid-cols-3 gap-8 animate-in slide-in-from-bottom-8 duration-700">
+                <div className="lg:col-span-2 bg-white rounded-[3rem] p-8 sm:p-12 shadow-2xl shadow-blue-900/10 border border-white relative overflow-hidden flex flex-col md:flex-row items-center gap-10">
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-bl-[5rem] -mr-8 -mt-8"></div>
+                   
+                   <div className="relative group shrink-0">
+                      <div className="absolute -inset-4 bg-blue-600/10 rounded-[4rem] blur-2xl group-hover:bg-blue-600/20 transition-all"></div>
+                      <div className="relative bg-slate-50 p-8 rounded-[3.5rem] shadow-inner border border-slate-100 flex flex-col items-center">
+                         <div className="bg-white p-4 rounded-[2rem] shadow-2xl mb-4">
+                            <QRCodeSVG 
+                               value={`${activeBooking.id}:${Math.floor(currentTime.getTime() / 60000)}`} 
+                               size={160}
+                               level={"H"}
+                            />
+                         </div>
+                         <div className="flex items-center gap-2 text-blue-600 font-black text-sm bg-blue-50 px-4 py-2 rounded-full">
+                            <Clock size={14} className="animate-pulse" />
+                            <span>{format(currentTime, 'HH:mm:ss')}</span>
+                         </div>
+                         
+                         <div className="mt-4 h-1 w-32 bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                               className="h-full bg-blue-600 transition-all duration-1000" 
+                               style={{ width: `${((currentTime.getTime() % 60000) / 60000) * 100}%` }}
+                            ></div>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className="flex-1 text-center md:text-left">
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 border border-green-100">
+                         <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></div>
+                         {activeBooking.status === 'checked-in' ? 'กำลังใช้งาน (ACTIVELY USING)' : 'รายการที่กำลังมาถึง (UPCOMING)'}
+                      </div>
+
+                      <h2 className="text-4xl font-black text-slate-900 mb-4">{format(activeBooking.start, 'HH:mm')} - {format(activeBooking.end, 'HH:mm')} น.</h2>
+                      <p className="text-slate-500 font-bold mb-8 flex items-center justify-center md:justify-start gap-2">
+                         <MapPin size={18} className="text-blue-500" />
+                         ชั้น 2 อาคาร อบจ.พะเยา
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Check-in</p>
+                            <p className="text-sm font-black text-slate-700">{activeBooking.checkInTime ? format(activeBooking.checkInTime.toDate(), 'HH:mm:ss') : '--:--'}</p>
+                         </div>
+                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                            <p className={`text-sm font-black uppercase ${activeBooking.status === 'checked-in' ? 'text-green-600' : 'text-blue-600'}`}>
+                               {activeBooking.status === 'checked-in' ? 'IN-ROOM' : 'WAITING'}
+                            </p>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="bg-slate-900 rounded-[3rem] p-8 sm:p-10 text-white flex flex-col justify-center relative overflow-hidden group">
+                   <div className="relative z-10">
+                      <h3 className="text-xl font-black mb-4">ระเบียบการสแกน</h3>
+                      <ul className="space-y-4 text-slate-400 text-sm font-bold">
+                         <li className="flex gap-3 items-start"><CheckCircle2 className="text-blue-500 shrink-0 mt-0.5" size={16} /> สแกนเมื่อเข้าใช้งาน (Check-in)</li>
+                         <li className="flex gap-3 items-start"><CheckCircle2 className="text-blue-500 shrink-0 mt-0.5" size={16} /> สแกนเมื่อเลิกใช้งาน (Check-out)</li>
+                         <li className="flex gap-3 items-start"><AlertTriangle className="text-yellow-500 shrink-0 mt-0.5" size={16} /> QR จะเปลี่ยนทุก 1 นาที ห้ามแคปหน้าจอเพื่อส่งให้ผู้อื่น</li>
+                      </ul>
+                   </div>
+                   <div className="absolute -bottom-10 -right-10 text-white/5 group-hover:text-blue-500/10 transition-colors">
+                      <QrCode size={180} />
+                   </div>
+                </div>
+             </div>
+          )}
+
           <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
              <div>
                 <h1 className="text-4xl font-black text-slate-900 mb-2 underline decoration-blue-600 decoration-8 underline-offset-8 text-nowrap">ระบบจองห้องนันทนาการ</h1>
@@ -304,7 +399,7 @@ export default function DashboardPage() {
                       <AlertTriangle size={14} /> หมายเหตุ: สามารถจองล่วงหน้าได้ไม่เกิน 15 วัน
                    </div>
                    <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-xs font-black border border-slate-200">
-                      <Clock size={14} /> เปิดให้บริการ: จันทร์ - ศุกร์ (ปิดเสาร์-อาทิตย์ และนักขัตฤกษ์)
+                      <Clock size={14} /> เปิดให้บริการ: จันทร์ - ศุกร์ (08:00 - 16:30 น.)
                    </div>
                 </div>
              </div>
@@ -387,7 +482,7 @@ export default function DashboardPage() {
                          <div key={time} className={`flex items-center justify-between p-7 rounded-[2.5rem] border-4 transition-all ${isBooked ? 'bg-red-50 border-red-100' : isPast ? 'bg-slate-100 border-slate-200 opacity-60' : 'bg-white border-blue-50 hover:border-blue-200 shadow-sm'}`}>
                             <div className="flex items-center gap-6">
                                <div className={`w-16 h-16 rounded-3xl flex items-center justify-center font-black text-2xl shadow-inner ${isBooked ? 'bg-red-100 text-red-500' : isPast ? 'bg-slate-200 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>{time}</div>
-                               <p className="font-black text-slate-800 text-xl">{time} - {parseInt(time)+1}:00 น.</p>
+                               <p className="font-black text-slate-800 text-xl">{time} - {time === "15:30" ? "16:30" : `${parseInt(time)+1}:00`} น.</p>
                             </div>
                             {isBooked ? <span className="text-red-500 font-black text-sm uppercase tracking-widest mr-4">ไม่ว่าง</span> : isPast ? <span className="text-slate-400 font-black text-sm uppercase tracking-widest mr-4">เลยเวลา</span> : 
                               <button onClick={() => { setSelectedTime(time); setStep(2); }} className="px-10 py-4 bg-blue-600 text-white rounded-3xl font-black text-sm hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-100">จอง</button>
@@ -404,7 +499,7 @@ export default function DashboardPage() {
                              <div>
                                 <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">เวลาที่จอง</p>
                                 <p className="text-xl font-black text-blue-900">
-                                   {selectedTime} - {parseInt(selectedTime || "0") + duration}:00 น. 
+                                   {selectedTime} - {selectedTime === "15:30" ? "16:30" : `${parseInt(selectedTime || "0") + duration}:00`} น. 
                                    <span className="ml-2 text-sm text-blue-400 font-bold">({duration} ชม.)</span>
                                 </p>
                              </div>
@@ -419,7 +514,7 @@ export default function DashboardPage() {
                                 // Check if next slot is available for 2hr option
                                 const h = parseInt(selectedTime || "0");
                                 const nextSlotBooked = d === 2 && isSlotBooked(selectedDate, `${(h+1).toString().padStart(2, '0')}:00`);
-                                const isFinalSlot = d === 2 && h >= 16; // 16:00 is the last slot
+                                const isFinalSlot = d === 2 && (h >= 15); // 15:00 (+2 = 17:00 NO), 15:30 (+2 = 17:30 NO)
 
                                 return (
                                    <button
@@ -532,7 +627,7 @@ export default function DashboardPage() {
            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
               <header className="p-10 bg-blue-600 text-white">
                  <div className="flex items-center gap-3 mb-6 font-black uppercase tracking-widest text-xl">ระเบียบการเข้าใช้บริการ</div>
-                 <h2 className="text-3xl font-black leading-tight">ห้องกิจกรรมนันทนาการเปิดให้บริการตั้งแต่วันจันทร์ถึงวันศุกร์ 8:00 น. - 17:00 น.</h2>
+                 <h2 className="text-3xl font-black leading-tight">ห้องกิจกรรมนันทนาการเปิดให้บริการตั้งแต่วันจันทร์ถึงวันศุกร์ 8:00 น. - 16:30 น.</h2>
               </header>
               
               <div className="p-10 overflow-y-auto custom-scrollbar flex-1">

@@ -38,7 +38,7 @@ export default function BookingPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const timeSlots = [
-    "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"
+    "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "15:30"
   ];
 
   useEffect(() => {
@@ -86,10 +86,10 @@ export default function BookingPage() {
     const start = new Date(y, m - 1, d, h, min);
     const end = addHours(start, duration);
 
-    // Limit check: cannot book past 17:00
-    const limitTime = new Date(`${selectedDate}T17:00:00`);
+    // Limit check: cannot book past 16:30
+    const limitTime = new Date(`${selectedDate}T16:30:00`);
     if (isAfter(end, limitTime)) {
-      return "ไม่สามารถจองเกินเวลา 17:00 น. ได้";
+      return "ไม่สามารถจองเกินเวลา 16:30 น. ได้";
     }
 
     // Overlap check
@@ -185,7 +185,7 @@ export default function BookingPage() {
            <div className="space-y-4">
               <label className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                 <Clock size={16} className="text-blue-500" />
-                เลือกเวลาเริ่ม (เปิด 08:00 - 17:00 น.)
+                เลือกเวลาเริ่ม (เปิด 08:00 - 16:30 น.)
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 {timeSlots.map((time) => (

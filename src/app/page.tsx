@@ -46,6 +46,7 @@ import {
 import { collection, query, where, onSnapshot, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { isOperationalDay } from "@/lib/holidays";
 
@@ -59,7 +60,7 @@ export default function LandingPage() {
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const timeSlots = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"];
+  const timeSlots = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "15:30"];
 
   // Policy Constants
   const maxBookingDays = 15;
@@ -91,6 +92,16 @@ export default function LandingPage() {
      return () => unsubscribe();
   }, [currentMonth]);
 
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const heroImages = ["/1.jpg", "/2.jpg", "/3.jpg"];
+
+  useEffect(() => {
+    const slideInterval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroImages.length);
+    }, 5000);
+    return () => clearInterval(slideInterval);
+  }, []);
+
   const handleDateClick = (date: Date) => {
     const clickedDate = startOfDay(date);
     if (isBefore(clickedDate, today) || isAfter(clickedDate, maxDate)) {
@@ -111,7 +122,7 @@ export default function LandingPage() {
     const [h, m] = timeStr.split(':').map(Number);
     const slotStart = new Date(date);
     slotStart.setHours(h, m, 0, 0);
-    const slotEnd = addHours(slotStart, 1);
+    const slotEnd = addHours(slotStart, slotStart.getHours() === 15 && slotStart.getMinutes() === 30 ? 1 : 1); // Still 1 hour, but ends at 16:30
     return getDayBookings(date).some((b: any) => (slotStart >= b.start && slotStart < b.end) || (slotEnd > b.start && slotEnd <= b.end));
   };
 
@@ -127,18 +138,48 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 sm:pt-48 sm:pb-32 bg-slate-50 border-b border-slate-100 overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-blue-600/5 -skew-x-12 translate-x-1/2"></div>
-        <div className="max-w-7xl mx-auto px-4 relative z-10 text-center lg:text-left grid lg:grid-cols-2 items-center gap-16">
-           <div>
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+           {/* Hero Image Slider Section */}
+           <div className="w-full h-[400px] relative rounded-[3rem] overflow-hidden mb-10 shadow-2xl border-8 border-white group">
+              {heroImages.map((src, index) => (
+                <div 
+                  key={src}
+                  className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
+                >
+                  <Image 
+                     src={src} 
+                     alt={`Phayao Recreation Center ${index + 1}`} 
+                     fill 
+                     className="object-cover"
+                     priority={true}
+                  />
+                </div>
+              ))}
+              
+              {/* Slider Controls */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                {heroImages.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentSlide(index)}
+                    className={`w-3 h-3 rounded-full transition-all ${index === currentSlide ? 'bg-white w-8' : 'bg-white/40 hover:bg-white/60'}`}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
+              </div>
+           </div>
+           
+           <div className="text-center max-w-4xl mx-auto">
               <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-xs font-black uppercase tracking-[0.2em] mb-8 border border-blue-100 shadow-sm">
                  <ShieldCheck size={14} /> Official Recreation Portal
               </span>
-              <h1 className="text-5xl sm:text-7xl font-black text-slate-900 leading-[1.05] tracking-tight mb-8">
-                 จองเวลา <br /> สุขภาพกาย สุขภาพใจ <br /><span className="text-blue-600">อบจ.พะเยา</span>
+              <h1 className="text-4xl sm:text-6xl font-black text-slate-900 leading-[1.1] tracking-tight mb-8">
+                 ศูนย์นันทนาการ <br /> องค์การบริหารส่วนจังหวัดพะเยา <br /><span className="text-blue-600">ยินดีต้อนรับ</span>
               </h1>
-              <p className="text-xl sm:text-2xl text-slate-500 font-bold leading-relaxed mb-12 max-w-xl">
-                 โครงการส่งเสริมสุขภาพสำหรับทุกคน เช็คเวลาว่างและจองคิวใช้งานออนไลน์ได้ทันที ตลอด 24 ชม.
+              <p className="text-xl sm:text-2xl text-slate-500 font-bold leading-relaxed mb-12 max-w-3xl mx-auto">
+                 ห้องกิจกรรมนันทนาการ เปิดทำการ 08:00 - 16.30 น. <br className="hidden sm:block" /> หยุดทำการ เสาร์-อาทิตย์ และวันหยุดนักขัตฤกษ์
               </p>
-           <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start items-center">
+              <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
                  {!firebaseUser ? (
                    <>
                      <button 
@@ -168,14 +209,6 @@ export default function LandingPage() {
                  )}
               </div>
            </div>
-           <div className="hidden lg:block relative group">
-              <div className="relative bg-white p-6 rounded-[4rem] shadow-2xl border-4 border-white transition-all group-hover:-rotate-1">
-                 <img src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=1000" className="w-full h-96 object-cover rounded-[3rem]" alt="gym" />
-                 <div className="absolute -bottom-6 -right-6 bg-blue-600 text-white p-8 rounded-[3rem] shadow-2xl font-black rotate-6 group-hover:rotate-0 transition-transform cursor-pointer" onClick={handleActionClick}>
-                    จองห้องเลย! <ArrowRight className="inline ml-2" />
-                 </div>
-              </div>
-           </div>
         </div>
       </section>
 
@@ -190,7 +223,7 @@ export default function LandingPage() {
                     <AlertTriangle size={14} /> หมายเหตุ: สามารถจองล่วงหน้าได้ไม่เกิน 15 วัน
                  </div>
                  <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-[10px] font-black border border-slate-200">
-                    <Clock size={14} /> เปิดให้บริการ: จันทร์ - ศุกร์ (ปิดเสาร์-อาทิตย์ และนักขัตฤกษ์)
+                    <Clock size={14} /> เปิดให้บริการ: จันทร์ - ศุกร์ (08:00 - 16:30 น.)
                  </div>
               </div>
               <div className="w-20 h-1.5 bg-blue-600 mx-auto mt-6 rounded-full"></div>
@@ -349,7 +382,7 @@ export default function LandingPage() {
                        <div key={time} className={`flex items-center justify-between p-7 rounded-[2.5rem] border-4 transition-all ${isBooked ? 'bg-red-50 border-red-100' : 'bg-white border-blue-50 hover:border-blue-200 shadow-sm'}`}>
                           <div className="flex items-center gap-6">
                              <div className={`w-16 h-16 rounded-3xl flex items-center justify-center font-black text-2xl ${isBooked ? 'bg-red-100 text-red-500' : 'bg-blue-50 text-blue-600'}`}>{time}</div>
-                             <p className="font-black text-slate-800 text-xl">{time} - {parseInt(time)+1}:00 น.</p>
+                             <p className="font-black text-slate-800 text-xl">{time} - {time === "15:30" ? "16:30" : `${parseInt(time)+1}:00`} น.</p>
                           </div>
                           {isBooked ? (
                              <div className="bg-red-50 text-red-500 px-6 py-2 rounded-2xl font-black text-sm uppercase tracking-widest border border-red-100 italic">ไม่ว่าง</div>

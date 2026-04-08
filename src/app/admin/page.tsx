@@ -12,7 +12,6 @@ import {
   Search, 
   User, 
   Clock, 
-  MapPin, 
   Calendar,
   XCircle,
   Scan,
@@ -36,26 +35,13 @@ import { th } from "date-fns/locale";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { signQR } from "@/lib/crypto";
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // Coordinates
-  const CENTER_LAT = 19.2089;
-  const CENTER_LNG = 99.8864;
-  const MAX_DISTANCE = 500;
 
-  function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371e3;
-    const φ1 = lat1 * Math.PI / 180;
-    const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180;
-    const Δλ = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
   
   // State
   const [bookingData, setBookingData] = useState<any>(null);
@@ -63,35 +49,12 @@ export default function AdminPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [todayStats, setTodayStats] = useState<{ total: number, checkedIn: number } | null>(null);
   const [manualId, setManualId] = useState("");
-  const [isAdminAtLocation, setIsAdminAtLocation] = useState<boolean | 'loading'>('loading');
-  const [isAdminTestMode, setIsAdminTestMode] = useState(false);
+
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
-  const canOperate = isAdminAtLocation === true || isAdminTestMode;
+  const canOperate = true;
 
-  useEffect(() => {
-    if (status === 'scanning' || status === 'idle') {
-      if (!navigator.geolocation) {
-        setIsAdminAtLocation(false);
-        return;
-      }
-      
-      const checkLoc = () => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const dist = getDistance(pos.coords.latitude, pos.coords.longitude, CENTER_LAT, CENTER_LNG);
-            setIsAdminAtLocation(dist <= MAX_DISTANCE);
-          },
-          () => setIsAdminAtLocation(false),
-          { enableHighAccuracy: true }
-        );
-      };
 
-      checkLoc();
-      const interval = setInterval(checkLoc, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [status]);
 
   const fetchTodayStats = async () => {
     try {
@@ -230,15 +193,17 @@ export default function AdminPage() {
       }
       
       setStatus('checking');
-      
+      // GPS check disabled by request
+
       const parts = decodedText.split(':');
       const bookingId = parts[0];
       const timestampBlock = parts[1] ? parseInt(parts[1]) : null;
       
-      const currentBlock = Math.floor(Date.now() / 30000);
+      const currentBlock = Math.floor(Date.now() / 60000);
       
+      // 3. Strict Timing Check (1 minute rotation)
       if (!timestampBlock || Math.abs(timestampBlock - currentBlock) > 1) {
-        setErrorMessage("QR Code หมดอายุหรือเป็นตัวอย่างภาพแคปหน้าจอ กรุณาใช้โค้ดสดจากแอปพลิเคชัน");
+        setErrorMessage("QR Code หมดอายุหรือเป็นตัวอย่างภาพแคปหน้าจอ กรุณาใช้รหัสปัจจุบันจากแอปพลิเคชัน (รหัสหมุนเวียนทุก 1 นาที)");
         setStatus('error');
         return;
       }
@@ -321,12 +286,6 @@ export default function AdminPage() {
                  <Link href="/admin/bookings" className="text-blue-600 font-black text-[10px] uppercase tracking-widest hover:underline">
                     Manage Bookings
                  </Link>
-                 <button 
-                  onClick={() => setIsAdminTestMode(!isAdminTestMode)}
-                  className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter transition-all ${isAdminTestMode ? 'bg-orange-500 text-white shadow-lg' : 'bg-slate-200 text-slate-400 hover:bg-slate-300'}`}
-                >
-                  {isAdminTestMode ? 'TEST MODE: ON' : 'TEST MODE: OFF'}
-                </button>
               </div>
             </div>
           </div>
@@ -344,11 +303,6 @@ export default function AdminPage() {
         </div>
 
         <div className="bg-white rounded-[3.5rem] shadow-2xl shadow-blue-900/5 p-10 sm:p-14 border border-white text-center relative overflow-hidden">
-           {isAdminTestMode && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-orange-50 text-orange-500 px-4 py-1 rounded-full text-[9px] font-black tracking-widest uppercase border border-orange-100 z-10 animate-pulse">
-                 Beta: GPS Bypassed
-              </div>
-           )}
 
            {status === 'idle' && (
              <div className="space-y-10 animate-in fade-in zoom-in duration-500">
@@ -357,20 +311,14 @@ export default function AdminPage() {
                 </div>
                 
                 <div className="space-y-6">
-                  <div className={`p-5 rounded-3xl flex items-center justify-center gap-3 border-2 transition-all ${isAdminAtLocation === true ? 'bg-green-50 text-green-600 border-green-100' : isAdminAtLocation === 'loading' ? 'bg-slate-50 text-slate-300 border-slate-100' : 'bg-red-50 text-red-500 border-red-100'}`}>
-                     {isAdminAtLocation === true ? <CheckCircle2 size={20} /> : isAdminAtLocation === 'loading' ? <Loader2 className="animate-spin" size={20} /> : <AlertCircle size={20} />}
-                     <span className="text-[11px] font-black uppercase tracking-[0.15em]">
-                        {isAdminAtLocation === true ? 'Location: Verified' : isAdminAtLocation === 'loading' ? 'Verifying location...' : 'Out of range / GPS Disabled'}
-                     </span>
-                  </div>
+
 
                   <button
-                    disabled={!canOperate}
                     onClick={() => setStatus('scanning')}
-                    className={`w-full py-6 rounded-[2rem] font-black text-xl shadow-2xl transition-all flex items-center justify-center gap-4 ${canOperate ? 'bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700 hover:-translate-y-1 active:scale-[0.98]' : 'bg-slate-100 text-slate-300 cursor-not-allowed grayscale'}`}
+                    className="w-full py-6 rounded-[2rem] font-black text-xl shadow-2xl transition-all flex items-center justify-center gap-4 bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700 hover:-translate-y-1 active:scale-[0.98]"
                   >
                     <Camera size={24} />
-                    {canOperate ? 'สแกน QR Code' : 'กรุณาอยู่ในพิกัด'}
+                    สแกน QR Code
                   </button>
                   
                   <div className="relative py-4">

@@ -35,26 +35,9 @@ import { db } from "@/lib/firebase";
 import { format, isAfter, isBefore, addMinutes, subHours } from "date-fns";
 import { th } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
+import { signQR } from "@/lib/crypto";
 
-// Haversine formula to calculate distance between two points in meters
-function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371e3; // meters
-  const φ1 = lat1 * Math.PI / 180;
-  const φ2 = lat2 * Math.PI / 180;
-  const Δφ = (lat2 - lat1) * Math.PI / 180;
-  const Δλ = (lon2 - lon1) * Math.PI / 180;
 
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) *
-    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
-
-const CENTER_LAT = 19.2089; // Phayao PAO Approximate
-const CENTER_LNG = 99.8864; // Phayao PAO Approximate
-const MAX_DISTANCE = 500; // 500 meters radius
 
 export default function HistoryPage() {
   const { user, loading: authLoading } = useAuth();
@@ -66,9 +49,9 @@ export default function HistoryPage() {
   
   // Security Features
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [isAtLocation, setIsAtLocation] = useState<boolean | 'loading'>('loading');
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [isUserTestMode, setIsUserTestMode] = useState(false);
+
+
+  const [qrValue, setQrValue] = useState<string>("");
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -78,44 +61,17 @@ export default function HistoryPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedBooking) {
-      setIsAtLocation('loading');
-      setLocationError(null);
-      
-      if (!navigator.geolocation) {
-        setLocationError("เบราว์เซอร์ของคุณไม่รองรับการระบุตำแหน่ง");
-        setIsAtLocation(false);
-        return;
+    async function updateQR() {
+      if (selectedBooking && user) {
+        const timestampBlock = Math.floor(new Date().getTime() / 60000);
+        const signature = await signQR(selectedBooking.id, timestampBlock, user.uid);
+        setQrValue(`${selectedBooking.id}:${timestampBlock}:${signature}`);
       }
-
-      const checkLocation = () => {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const distance = getDistance(
-              position.coords.latitude, 
-              position.coords.longitude, 
-              CENTER_LAT, 
-              CENTER_LNG
-            );
-            setIsAtLocation(distance <= MAX_DISTANCE);
-          },
-          (error) => {
-            let msg = "กรุณาเปิด GPS เพื่อเข้าใช้งาน QR Code";
-            if (error.code === error.PERMISSION_DENIED) {
-               msg = "กรุณาอนุญาตให้เข้าถึงตำแหน่งที่ตั้ง (Location Permission denied)";
-            }
-            setLocationError(msg);
-            setIsAtLocation(false);
-          },
-          { enableHighAccuracy: true, timeout: 10000 }
-        );
-      };
-
-      checkLocation();
-      const locationInterval = setInterval(checkLocation, 10000); // Re-check every 10s
-      return () => clearInterval(locationInterval);
     }
-  }, [selectedBooking]);
+    updateQR();
+  }, [currentTime.getMinutes(), selectedBooking, user]);
+
+
 
   useEffect(() => {
     if (user) {
@@ -185,7 +141,7 @@ export default function HistoryPage() {
     return { label: 'พร้อมเช็คอิน', color: 'bg-yellow-100 text-yellow-600', icon: Timer };
   };
 
-  const showQRCode = isAtLocation === true || isUserTestMode;
+  const showQRCode = true;
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center font-sans bg-slate-50"><Loader2 className="animate-spin text-blue-600" /></div>;
 
@@ -205,12 +161,6 @@ export default function HistoryPage() {
             </div>
           </div>
           
-          <button 
-            onClick={() => setIsUserTestMode(!isUserTestMode)}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isUserTestMode ? 'bg-orange-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
-          >
-            {isUserTestMode ? 'TEST MODE: ON' : 'TEST MODE: OFF'}
-          </button>
         </div>
 
         {loading ? (
@@ -304,11 +254,6 @@ export default function HistoryPage() {
       {selectedBooking && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
            <div className="bg-white w-full max-w-sm rounded-[4rem] shadow-2xl p-10 relative overflow-hidden animate-in zoom-in-95 duration-500">
-              {isUserTestMode && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-orange-50 text-orange-600 px-4 py-1 rounded-full text-[9px] font-black tracking-widest uppercase border border-orange-100 z-10 animate-pulse">
-                   BETA: GPS BYPASSED
-                </div>
-              )}
               
               <button 
                 onClick={() => setSelectedBooking(null)}
@@ -332,49 +277,30 @@ export default function HistoryPage() {
                        ID: {user?.fullName}
                     </div>
 
-                    <div className="p-10 bg-slate-50 rounded-[3.5rem] shadow-inner mb-6 relative overflow-hidden flex flex-col items-center border border-slate-100">
-                       {isAtLocation === 'loading' ? (
-                         <div className="w-[200px] h-[200px] flex flex-col items-center justify-center gap-4">
-                            <Loader2 size={48} className="animate-spin text-blue-600" />
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed">Verifying<br/>your location...</p>
-                         </div>
-                       ) : showQRCode ? (
-                         <>
-                           <div className="bg-white p-4 rounded-[2rem] shadow-2xl">
-                             <QRCodeSVG 
-                               value={`${selectedBooking.id}:${Math.floor(currentTime.getTime() / 30000)}`} 
-                               size={180}
-                               level={"H"}
-                               includeMargin={false}
-                             />
-                           </div>
-                           <div className="mt-6 flex items-center gap-3 text-blue-600 font-black px-6 py-2 bg-blue-50 rounded-full">
-                              <Timer size={16} className="animate-pulse" />
-                              <span className="text-base tracking-[0.1em]">{format(currentTime, 'HH:mm:ss')}</span>
-                           </div>
-                         </>
-                       ) : (
-                         <div className="w-[200px] h-[200px] flex flex-col items-center justify-center gap-6 p-6 text-center">
-                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-500">
-                               <MapPin size={32} />
-                            </div>
-                            <div>
-                               <p className="text-xs font-black text-red-600 uppercase tracking-widest mb-1">{locationError || "Out of range"}</p>
-                               <p className="text-[9px] text-red-400 font-bold leading-relaxed px-4">กรุณาเข้าสู่พื้นที่ให้บริการ หรือใช้ Test Mode เพื่อทดสอบ</p>
-                            </div>
-                         </div>
-                       )}
-                    </div>
+                     <div className="p-10 bg-slate-50 rounded-[3.5rem] shadow-inner mb-6 relative overflow-hidden flex flex-col items-center border border-slate-100">
+                        <div className="bg-white p-4 rounded-[2rem] shadow-2xl">
+                          <QRCodeSVG 
+                            value={qrValue} 
+                            size={180}
+                            level={"H"}
+                            includeMargin={false}
+                          />
+                        </div>
+                        <div className="mt-6 flex items-center gap-3 text-blue-600 font-black px-6 py-2 bg-blue-50 rounded-full">
+                           <Timer size={16} className="animate-pulse" />
+                           <span className="text-base tracking-[0.1em]">{format(currentTime, 'HH:mm:ss')}</span>
+                        </div>
+                     </div>
                     
                     {showQRCode && (
                       <div className="mb-8 flex flex-col items-center w-full px-12">
                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
                             <div 
                                className="h-full bg-blue-600 transition-all duration-1000" 
-                               style={{ width: `${((currentTime.getTime() % 30000) / 30000) * 100}%` }}
+                               style={{ width: `${((currentTime.getTime() % 60000) / 60000) * 100}%` }}
                             ></div>
                          </div>
-                         <p className="mt-3 text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] opacity-60">Refreshing in 30s</p>
+                         <p className="mt-3 text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] opacity-60">Refreshing in 60s</p>
                       </div>
                     )}
                   </div>
