@@ -82,11 +82,33 @@ export default function UserManagementPage() {
     try {
       const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
-      const fetchedUsers = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        created: (doc.data().createdAt as Timestamp)?.toDate() || new Date()
-      }));
+      const now = new Date();
+      const fetchedUsers: any[] = [];
+
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data();
+        let userData: any = {
+          id: docSnap.id,
+          ...data,
+          created: (data.createdAt as Timestamp)?.toDate() || new Date()
+        };
+
+        // Auto-unsuspend: ตรวจสอบและปลดแบนอัตโนมัติเมื่อหมดระยะเวลาระงับ
+        if (data.status === "suspended" && data.suspendedUntil) {
+          const suspendedUntilDate = (data.suspendedUntil as Timestamp).toDate();
+          if (now >= suspendedUntilDate) {
+            try {
+              await updateDoc(doc(db, "users", docSnap.id), { status: "active" });
+              userData.status = "active";
+            } catch (err) {
+              console.error("Auto-unsuspend failed for", docSnap.id, err);
+            }
+          }
+        }
+
+        fetchedUsers.push(userData);
+      }
+
       setUsers(fetchedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
