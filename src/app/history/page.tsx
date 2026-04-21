@@ -182,7 +182,7 @@ export default function HistoryPage() {
               const status = getStatusInfo(booking);
               const SStatusIcon = status.icon;
               const isCancelled = booking.status === 'cancelled';
-              const canCancel = !isCancelled && isBefore(new Date(), subHours(booking.start, 6)) && booking.status !== 'checked-in';
+              const canCancel = booking.status === 'confirmed' && isBefore(new Date(), subHours(booking.start, 6));
               
               return (
                 <div 
@@ -306,15 +306,15 @@ export default function HistoryPage() {
                   </div>
 
                  {/* Details & Cancellation */}
-                 {isBefore(new Date(), subHours(selectedBooking.start, 6)) && selectedBooking.status === 'confirmed' ? (
-                   <button 
-                    disabled={isCancelling}
-                    onClick={() => handleCancelBooking(selectedBooking.id)}
-                    className="w-full py-5 bg-white border-2 border-red-50 text-red-400 rounded-3xl font-black text-xs hover:bg-red-50 hover:border-red-100 transition-all active:scale-95 flex items-center justify-center gap-2 mb-2"
-                   >
+                 {selectedBooking.status === 'confirmed' && isBefore(new Date(), subHours(selectedBooking.start, 6)) ? (
+                    <button 
+                     disabled={isCancelling}
+                     onClick={() => handleCancelBooking(selectedBooking.id)}
+                     className="w-full py-5 bg-white border-2 border-red-50 text-red-400 rounded-3xl font-black text-xs hover:bg-red-50 hover:border-red-100 transition-all active:scale-95 flex items-center justify-center gap-2 mb-2"
+                    >
                      {isCancelling ? <Loader2 className="animate-spin" /> : "ยกเลิกการจองรายการนี้"}
-                   </button>
-                 ) : selectedBooking.status === 'confirmed' && isBefore(new Date(), selectedBooking.start) && (
+                    </button>
+                  ) : selectedBooking.status === 'confirmed' && isBefore(new Date(), selectedBooking.start) && (
                    <p className="mb-4 text-[9px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2 justify-center italic">
                       <AlertTriangle size={12} /> ยกเลิกได้ก่อนเริ่ม 6 ชม. เท่านั้น
                    </p>
