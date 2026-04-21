@@ -89,13 +89,17 @@ export default function HistoryPage() {
       );
       
       const querySnapshot = await getDocs(q);
-      const bookingData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        start: (doc.data().startTime as Timestamp).toDate(),
-        end: (doc.data().endTime as Timestamp).toDate(),
-        created: (doc.data().createdAt as Timestamp).toDate()
-      }));
+      const bookingData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          start: (data.startTime as Timestamp).toDate(),
+          end: (data.endTime as Timestamp).toDate(),
+          // Fallback to startTime if createdAt is missing
+          created: (data.createdAt as Timestamp)?.toDate() || (data.startTime as Timestamp).toDate()
+        };
+      });
       setBookings(bookingData);
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -115,9 +119,13 @@ export default function HistoryPage() {
       });
       await fetchUserBookings();
       setSelectedBooking(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Cancellation error:", error);
-      alert("เกิดข้อผิดพลาดในการยกเลิก");
+      if (error.code === 'permission-denied') {
+        alert("คุณไม่มีสิทธิ์ในการยกเลิกรายการนี้ (Permission Denied)");
+      } else {
+        alert("เกิดข้อผิดพลาดในการยกเลิก: " + (error.message || "กรุณาลองใหม่อีกครั้ง"));
+      }
     } finally {
       setIsCancelling(false);
     }

@@ -29,7 +29,8 @@ import {
   deleteDoc, 
   doc, 
   Timestamp,
-  where
+  where,
+  updateDoc
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { format, isSameDay, startOfDay, endOfDay } from "date-fns";
@@ -64,18 +65,35 @@ export default function AdminBookingsPage() {
     try {
       const q = query(collection(db, "bookings"), orderBy("startTime", "desc"));
       const querySnapshot = await getDocs(q);
-      const bookingData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        start: (doc.data().startTime as Timestamp).toDate(),
-        end: (doc.data().endTime as Timestamp).toDate(),
-        created: (doc.data().createdAt as Timestamp).toDate()
-      }));
+      const bookingData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          start: (data.startTime as Timestamp).toDate(),
+          end: (data.endTime as Timestamp).toDate(),
+          created: (data.createdAt as Timestamp)?.toDate() || (data.startTime as Timestamp).toDate()
+        };
+      });
       setBookings(bookingData);
     } catch (e) {
       console.error("Error fetching bookings:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (id: string, newStatus: string) => {
+    try {
+      await updateDoc(doc(db, "bookings", id), {
+        status: newStatus,
+        updatedAt: Timestamp.now(),
+        ...(newStatus === 'cancelled' ? { cancelledAt: Timestamp.now() } : {})
+      });
+      setBookings(bookings.map(b => b.id === id ? { ...b, status: newStatus } : b));
+    } catch (error: any) {
+      console.error("Error updating status:", error);
+      alert("เกิดข้อผิดพลาดในการปรับปรุงสถานะ: " + (error.message || "กรุณาลองใหม่อีกครั้ง"));
     }
   };
 
@@ -85,9 +103,13 @@ export default function AdminBookingsPage() {
       await deleteDoc(doc(db, "bookings", id));
       setBookings(bookings.filter(b => b.id !== id));
       setConfirmDelete(null);
-    } catch (e) {
-      console.error("Error deleting booking:", e);
-      alert("เกิดข้อผิดพลาดในการลบข้อมูล");
+    } catch (error: any) {
+      console.error("Error deleting booking:", error);
+      if (error.code === 'permission-denied') {
+        alert("คุณไม่มีสิทธิ์ในการลบข้อมูลนี้ (Permission Denied)");
+      } else {
+        alert("เกิดข้อผิดพลาดในการลบข้อมูล: " + (error.message || "กรุณาลองใหม่อีกครั้ง"));
+      }
     } finally {
       setIsDeleting(false);
     }

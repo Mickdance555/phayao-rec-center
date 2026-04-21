@@ -136,24 +136,31 @@ export default function BookingPage() {
       // 2. Cooldown Check (24 Hours)
       const cooldownQuery = query(
         collection(db, "bookings"),
-        where("userId", "==", user?.uid),
-        orderBy("createdAt", "desc"),
-        limit(1)
+        where("userId", "==", user?.uid)
       );
       const cooldownSnap = await getDocs(cooldownQuery);
       
       if (!cooldownSnap.empty) {
-        const lastBooking = cooldownSnap.docs[0].data();
-        const lastCreated = (lastBooking.createdAt as Timestamp).toDate();
-        const now = new Date();
-        const diffInMs = now.getTime() - lastCreated.getTime();
-        const diffInHours = diffInMs / (1000 * 60 * 60);
-        
-        if (diffInHours < 24) {
-          const remainingHours = Math.ceil(24 - diffInHours);
-          setErrorMessage(`คุณได้ทำการจองไปแล้ว: กรุณารออีกประมาณ ${remainingHours} ชั่วโมง จึงจะสามารถจองได้ใหม่อีกครั้ง`);
-          setBookingStatus('error');
-          return;
+        // Filter out bookings without createdAt (old data) and cancelled ones
+        const userBookings = cooldownSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() as any }))
+          .filter(b => b.createdAt && b.status !== 'cancelled');
+
+        if (userBookings.length > 0) {
+          const lastBooking = userBookings.sort((a: any, b: any) => 
+            (b.createdAt as Timestamp).toMillis() - (a.createdAt as Timestamp).toMillis()
+          )[0];
+
+          const lastCreated = (lastBooking.createdAt as Timestamp).toDate();
+          const now = new Date();
+          const diffInHours = (now.getTime() - lastCreated.getTime()) / (1000 * 60 * 60);
+          
+          if (diffInHours < 24) {
+            const remainingHours = Math.ceil(24 - diffInHours);
+            setErrorMessage(`คุณได้ทำการจองไปแล้ว: กรุณารออีกประมาณ ${remainingHours} ชั่วโมง จึงจะสามารถจองได้ใหม่อีกครั้ง (การจองล่าสุดเมื่อ ${format(lastCreated, 'HH:mm', { locale: th })} น.)`);
+            setBookingStatus('error');
+            return;
+          }
         }
       }
 

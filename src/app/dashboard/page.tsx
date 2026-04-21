@@ -223,33 +223,42 @@ export default function DashboardPage() {
       return;
     }
 
-    // Validation
-    const hasEmpty = attendees.some(at => !at.name.trim() || !at.phone.trim());
-    if (hasEmpty) {
-      alert("กรุณากรอกข้อมูลผู้ร่วมงานให้ครบถ้วน");
+    // Validation - Ensure all attendee fields are filled
+    const hasInvalid = attendees.some(at => !at.name?.trim() || !at.phone?.trim());
+    if (hasInvalid) {
+      alert("กรุณากรอกข้อมูลผู้ร่วมงานให้ครบถ้วน (ชื่อและเบอร์โทรศัพท์)");
       return;
     }
 
-    // 24-Hour Cooldown Check
+    // 24-Hour Cooldown Check - Only consider non-cancelled bookings
     const cooldownQuery = query(
       collection(db, "bookings"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc"),
-      limit(1)
+      where("userId", "==", user.uid)
     );
     const cooldownSnap = await getDocs(cooldownQuery);
     
     if (!cooldownSnap.empty) {
-      const lastBooking = cooldownSnap.docs[0].data();
-      const lastCreated = (lastBooking.createdAt as Timestamp).toDate();
-      const now = new Date();
-      const diffInHours = (now.getTime() - lastCreated.getTime()) / (1000 * 60 * 60);
-      
-      if (diffInHours < 24) {
-        const remainingHours = Math.ceil(24 - diffInHours);
-        alert(`คุณได้ทำการจองไปแล้ว: กรุณารออีกประมาณ ${remainingHours} ชั่วโมง จึงจะสามารถจองได้ใหม่อีกครั้ง`);
-        setIsBookingLoading(false);
-        return;
+      // Filter out bookings that don't have createdAt (old data) and cancelled ones
+      const userBookings = cooldownSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() as any }))
+        .filter(b => b.createdAt && b.status !== 'cancelled');
+
+      if (userBookings.length > 0) {
+        // Sort to find the absolute latest booking
+        const lastBooking = userBookings.sort((a: any, b: any) => 
+          (b.createdAt as Timestamp).toMillis() - (a.createdAt as Timestamp).toMillis()
+        )[0];
+
+        const lastCreated = (lastBooking.createdAt as Timestamp).toDate();
+        const now = new Date();
+        const diffInHours = (now.getTime() - lastCreated.getTime()) / (1000 * 60 * 60);
+        
+        if (diffInHours < 24) {
+          const remainingHours = Math.ceil(24 - diffInHours);
+          alert(`คุณได้ทำการจองไปแล้ว: กรุณารออีกประมาณ ${remainingHours} ชั่วโมง จึงจะสามารถจองได้ใหม่อีกครั้ง (การจองล่าสุดเมื่อ ${format(lastCreated, 'HH:mm', { locale: th })} น.)`);
+          setIsBookingLoading(false);
+          return;
+        }
       }
     }
 
@@ -257,14 +266,17 @@ export default function DashboardPage() {
     try {
       // 1. Check member status for each attendee
       const verifiedAttendees = await Promise.all(attendees.map(async (at) => {
+         const cleanName = (at.name || "").trim();
+         const cleanPhone = (at.phone || "").trim();
+         
          // Query users collection for this name
-         const q = query(collection(db, "users"), where("fullName", "==", at.name.trim()));
+         const q = query(collection(db, "users"), where("fullName", "==", cleanName));
          const snap = await getDocs(q);
          return {
             ...at,
             isMember: !snap.empty,
-            name: at.name.trim(),
-            phone: at.phone.trim()
+            name: cleanName,
+            phone: cleanPhone
          };
       }));
 
@@ -320,9 +332,15 @@ export default function DashboardPage() {
       setGroupName("");
       // Reset attendees to just the user
       setAttendees([{ name: user.fullName, phone: user.phone || "", isMember: true }]);
-    } catch (error) { 
-      console.error("Booking error:", error);
-      alert("เกิดข้อผิดพลาดในการจอง กรุณาลองใหม่อีกครั้ง");
+    } catch (error: any) { 
+      console.error("Booking error details:", error);
+      if (error.message?.includes("index")) {
+        alert("ระบบฐานข้อมูลยังไม่พร้อม (Missing Index) กรุณาแจ้งผู้ดูแลระบบเพื่อให้ดำเนินการสร้าง Index");
+      } else if (error.code === "permission-denied") {
+        alert("คุณไม่มีสิทธิ์ในการเข้าถึงฐานข้อมูล หรือกฎการเข้าถึงไม่ถูกต้อง");
+      } else {
+        alert("เกิดข้อผิดพลาดในการจอง: " + (error.message || "กรุณาลองใหม่อีกครั้ง"));
+      }
     } finally { 
       setIsBookingLoading(false); 
     }
