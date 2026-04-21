@@ -19,7 +19,8 @@ import {
   where, 
   getDocs, 
   Timestamp, 
-  orderBy 
+  orderBy,
+  limit
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { format, addHours, startOfDay, endOfDay, isBefore, parse, isAfter } from "date-fns";
@@ -112,15 +113,51 @@ export default function BookingPage() {
   };
 
   const handleBooking = async () => {
-    const error = checkOverlap();
-    if (error) {
-      setErrorMessage(error);
+    // 1. Basic Overlap and Time Checks
+    const overlapError = checkOverlap();
+    if (overlapError) {
+      setErrorMessage(overlapError);
       setBookingStatus('error');
       return;
     }
 
+    // 2. Suspension Check
+    if (user?.status === "suspended") {
+      const until = (user.suspendedUntil as Timestamp)?.toDate();
+      if (until && new Date() < until) {
+        setErrorMessage(`ขออภัย บัญชีของคุณถูกระงับการใช้งานจนถึงวันที่ ${format(until, 'd MMMM yyyy HH:mm', { locale: th })}`);
+        setBookingStatus('error');
+        return;
+      }
+    }
+
     setBookingStatus('loading');
     try {
+      // 2. Cooldown Check (24 Hours)
+      const cooldownQuery = query(
+        collection(db, "bookings"),
+        where("userId", "==", user?.uid),
+        orderBy("createdAt", "desc"),
+        limit(1)
+      );
+      const cooldownSnap = await getDocs(cooldownQuery);
+      
+      if (!cooldownSnap.empty) {
+        const lastBooking = cooldownSnap.docs[0].data();
+        const lastCreated = (lastBooking.createdAt as Timestamp).toDate();
+        const now = new Date();
+        const diffInMs = now.getTime() - lastCreated.getTime();
+        const diffInHours = diffInMs / (1000 * 60 * 60);
+        
+        if (diffInHours < 24) {
+          const remainingHours = Math.ceil(24 - diffInHours);
+          setErrorMessage(`คุณได้ทำการจองไปแล้ว: กรุณารออีกประมาณ ${remainingHours} ชั่วโมง จึงจะสามารถจองได้ใหม่อีกครั้ง`);
+          setBookingStatus('error');
+          return;
+        }
+      }
+
+      // 3. Proceed with Booking
       const [y, m, d] = selectedDate.split('-').map(Number);
       const [h, min] = startTime.split(':').map(Number);
       const start = new Date(y, m - 1, d, h, min);
@@ -141,9 +178,15 @@ export default function BookingPage() {
       setTimeout(() => {
         router.push("/history");
       }, 2000);
-    } catch (error) {
-      console.error("Booking error:", error);
-      setErrorMessage("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+    } catch (error: any) {
+      console.error("Booking error details:", error);
+      if (error.message?.includes("index")) {
+        setErrorMessage("ระบบฐานข้อมูลยังไม่พร้อม (Missing Index) กรุณาแจ้งผู้ดูแลระบบ");
+      } else if (error.code === "permission-denied") {
+        setErrorMessage("คุณไม่มีสิทธิ์ในการดำเนินการนี้");
+      } else {
+        setErrorMessage("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + (error.message || "Unknown error"));
+      }
       setBookingStatus('error');
     }
   };

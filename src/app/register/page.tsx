@@ -41,21 +41,30 @@ export default function RegisterPage() {
   }, [firebaseUser, profile, authLoading, router]);
 
   const generateMemberId = async (): Promise<string> => {
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, orderBy("memberId", "desc"), limit(1));
-    const querySnapshot = await getDocs(q);
-    
-    let lastId = 0;
-    if (!querySnapshot.empty) {
-      const lastUser = querySnapshot.docs[0].data();
-      const match = lastUser.memberId.match(/PY-REC-(\d+)/);
-      if (match) {
-        lastId = parseInt(match[1], 10);
+    try {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, orderBy("memberId", "desc"), limit(1));
+      const querySnapshot = await getDocs(q);
+      
+      let lastId = 0;
+      if (!querySnapshot.empty) {
+        const lastUser = querySnapshot.docs[0].data();
+        if (lastUser && lastUser.memberId) {
+          const match = lastUser.memberId.match(/PY-REC-(\d+)/);
+          if (match) {
+            lastId = parseInt(match[1], 10);
+          }
+        }
       }
+      
+      const nextId = (lastId + 1).toString().padStart(4, '0');
+      return `PY-REC-${nextId}`;
+    } catch (error) {
+      console.error("Error generating member ID:", error);
+      // Fallback: use a timestamp or random number if query fails to avoid blocking registration
+      const random = Math.floor(Math.random() * 9000) + 1000;
+      return `PY-REC-${random}`;
     }
-    
-    const nextId = (lastId + 1).toString().padStart(4, '0');
-    return `PY-REC-${nextId}`;
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -117,9 +126,16 @@ export default function RegisterPage() {
         router.push("/dashboard");
       }, 500);
       
-    } catch (err) {
-      console.error(err);
-      setError("เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง");
+    } catch (err: any) {
+      console.error("Registration Error Detail:", err);
+      // Provide more context to the user if it's a permission issue or index issue
+      if (err.code === "permission-denied") {
+        setError("ไม่มีสิทธิ์ในการบันทึกข้อมูล (Permission Denied) กรุณาติดต่อผู้ดูแลระบบ");
+      } else if (err.message?.includes("index")) {
+        setError("ระบบฐานข้อมูลยังไม่พร้อม (Missing Index) กรุณารอสักครู่แล้วลองใหม่");
+      } else {
+        setError("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + (err.message || "Unknown error"));
+      }
       setIsSubmitting(false);
     }
   };

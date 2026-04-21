@@ -230,6 +230,29 @@ export default function DashboardPage() {
       return;
     }
 
+    // 24-Hour Cooldown Check
+    const cooldownQuery = query(
+      collection(db, "bookings"),
+      where("userId", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(1)
+    );
+    const cooldownSnap = await getDocs(cooldownQuery);
+    
+    if (!cooldownSnap.empty) {
+      const lastBooking = cooldownSnap.docs[0].data();
+      const lastCreated = (lastBooking.createdAt as Timestamp).toDate();
+      const now = new Date();
+      const diffInHours = (now.getTime() - lastCreated.getTime()) / (1000 * 60 * 60);
+      
+      if (diffInHours < 24) {
+        const remainingHours = Math.ceil(24 - diffInHours);
+        alert(`คุณได้ทำการจองไปแล้ว: กรุณารออีกประมาณ ${remainingHours} ชั่วโมง จึงจะสามารถจองได้ใหม่อีกครั้ง`);
+        setIsBookingLoading(false);
+        return;
+      }
+    }
+
     setIsBookingLoading(true);
     try {
       // 1. Check member status for each attendee
@@ -386,6 +409,22 @@ export default function DashboardPage() {
                    <div className="absolute -bottom-10 -right-10 text-white/5 group-hover:text-blue-500/10 transition-colors">
                       <QrCode size={180} />
                    </div>
+                </div>
+             </div>
+          )}
+
+          {/* Suspension Notice */}
+          {user.status === 'suspended' && (
+             <div className="mb-8 p-6 bg-red-50 border-4 border-red-100 rounded-[2.5rem] flex flex-col sm:flex-row items-center gap-6 animate-in slide-in-from-top-8 duration-700">
+                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-3xl flex items-center justify-center shrink-0">
+                   <AlertTriangle size={32} />
+                </div>
+                <div className="text-center sm:text-left">
+                   <h3 className="text-xl font-black text-red-900 mb-1">บัญชีของคุณถูกระงับการใช้งานชั่วคราว</h3>
+                   <p className="text-red-600 font-bold">
+                      คุณได้กระทำผิดกฎระเบียบของห้องนันทนาการ ระบบจะปลดแบนให้โดยอัตโนมัติในวันที่: <br className="sm:hidden" />
+                      <span className="underline decoration-2 underline-offset-4">{user.suspendedUntil ? format(user.suspendedUntil.toDate(), 'd MMMM yyyy เวลา HH:mm น.', { locale: th }) : 'ไม่ระบุ'}</span>
+                   </p>
                 </div>
              </div>
           )}

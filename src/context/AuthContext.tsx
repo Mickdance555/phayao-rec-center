@@ -47,11 +47,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = async (uid: string) => {
     const userDocRef = doc(db, "users", uid);
-    const userDoc = await getDoc(userDocRef);
-    if (userDoc.exists()) {
-      setUser(userDoc.data() as UserProfile);
-      return userDoc.data() as UserProfile;
-    } else {
+    try {
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        const data = userDoc.data() as UserProfile;
+        
+        // Auto-unsuspend logic: If suspended and time has passed, set to active
+        if (data.status === "suspended" && data.suspendedUntil) {
+          const suspendedUntilDate = data.suspendedUntil.toDate();
+          if (new Date() >= suspendedUntilDate) {
+            await setDoc(userDocRef, { status: "active" }, { merge: true });
+            data.status = "active";
+          }
+        }
+
+        setUser(data);
+        return data;
+      } else {
+        setUser(null);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
       setUser(null);
       return null;
     }
