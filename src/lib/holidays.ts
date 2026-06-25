@@ -19,8 +19,34 @@ export const PUBLIC_HOLIDAYS = [
 ];
 
 export const isOperationalDay = (date: Date) => {
-  if (isWeekend(date)) return false;
   const dateStr = format(date, 'yyyy-MM-dd');
   if (PUBLIC_HOLIDAYS.includes(dateStr)) return false;
   return true;
+};
+
+export interface BookingConfig {
+  openTime: string;
+  closeTime: string;
+  closeHour: number;
+  closeMinute: number;
+  slots: string[];
+}
+
+export const getBookingConfig = (date: Date): BookingConfig => {
+  if (isWeekend(date)) {
+    return {
+      openTime: "09:00",
+      closeTime: "16:00",
+      closeHour: 16,
+      closeMinute: 0,
+      slots: ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00"]
+    };
+  }
+  return {
+    openTime: "08:00",
+    closeTime: "19:00",
+    closeHour: 19,
+    closeMinute: 0,
+    slots: ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+  };
 };

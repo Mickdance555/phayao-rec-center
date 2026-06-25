@@ -26,6 +26,7 @@ import { db } from "@/lib/firebase";
 import { format, addHours, startOfDay, endOfDay, isBefore, parse, isAfter } from "date-fns";
 import { th } from "date-fns/locale";
 import { useRouter } from "next/navigation";
+import { isOperationalDay, getBookingConfig } from "@/lib/holidays";
 
 export default function BookingPage() {
   const { user, loading: authLoading } = useAuth();
@@ -38,9 +39,10 @@ export default function BookingPage() {
   const [bookingStatus, setBookingStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState("");
 
-  const timeSlots = [
-    "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "15:30"
-  ];
+  const [y, m, d] = selectedDate.split('-').map(Number);
+  const dateObj = new Date(y, m - 1, d);
+  const config = getBookingConfig(dateObj);
+  const slots = config.slots;
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -50,6 +52,11 @@ export default function BookingPage() {
 
   useEffect(() => {
     fetchBookingsForDate();
+    
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const config = getBookingConfig(dateObj);
+    setStartTime((prev) => config.slots.includes(prev) ? prev : config.slots[0]);
   }, [selectedDate]);
 
   const fetchBookingsForDate = async () => {
@@ -83,14 +90,20 @@ export default function BookingPage() {
 
   const checkOverlap = () => {
     const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    if (!isOperationalDay(dateObj)) {
+      return "ขออภัย ห้องนันทนาการปิดให้บริการในวันหยุดนักขัตฤกษ์";
+    }
+
+    const config = getBookingConfig(dateObj);
     const [h, min] = startTime.split(':').map(Number);
     const start = new Date(y, m - 1, d, h, min);
     const end = addHours(start, duration);
 
-    // Limit check: cannot book past 16:30
-    const limitTime = new Date(`${selectedDate}T16:30:00`);
+    // Limit check: cannot book past closeTime
+    const limitTime = new Date(y, m - 1, d, config.closeHour, config.closeMinute, 0, 0);
     if (isAfter(end, limitTime)) {
-      return "ไม่สามารถจองเกินเวลา 16:30 น. ได้";
+      return `ไม่สามารถจองเกินเวลา ${config.closeTime} น. ได้`;
     }
 
     // Overlap check
@@ -235,10 +248,10 @@ export default function BookingPage() {
            <div className="space-y-4">
               <label className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                 <Clock size={16} className="text-blue-500" />
-                เลือกเวลาเริ่ม (เปิด 08:00 - 16:30 น.)
+                เลือกเวลาเริ่ม (เปิดให้บริการ {config.openTime} - {config.closeTime} น.)
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                {timeSlots.map((time) => (
+                {slots.map((time) => (
                   <button
                     key={time}
                     onClick={() => setStartTime(time)}

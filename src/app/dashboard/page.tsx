@@ -40,7 +40,7 @@ import {
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { isOperationalDay } from "@/lib/holidays";
+import { isOperationalDay, getBookingConfig } from "@/lib/holidays";
 
 export default function DashboardPage() {
   const { user, firebaseUser, loading: authLoading, signInWithGoogle, logout } = useAuth();
@@ -100,9 +100,7 @@ export default function DashboardPage() {
     setShowRulesModal(false);
   };
 
-  const timeSlots = [
-    "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "15:30"
-  ];
+  // Dynamic slots are retrieved via getBookingConfig(selectedDate)
 
   useEffect(() => {
     if (!authLoading) {
@@ -219,7 +217,7 @@ export default function DashboardPage() {
     }
 
     if (!isOperationalDay(selectedDate)) {
-      alert("ขออภัย ห้องนันทนาการเปิดให้บริการเฉพาะวันจันทร์-ศุกร์ ยกเว้นวันหยุดนักขัตฤกษ์");
+      alert("ขออภัย ห้องนันทนาการปิดให้บริการในวันหยุดนักขัตฤกษ์");
       return;
     }
 
@@ -285,11 +283,12 @@ export default function DashboardPage() {
       start.setHours(h, m, 0, 0);
       const end = addHours(start, duration);
 
-      // Limit check: cannot book past 16:30
+      // Limit check: cannot book past close time
+      const config = getBookingConfig(selectedDate);
       const limitTime = new Date(selectedDate);
-      limitTime.setHours(16, 30, 0, 0);
+      limitTime.setHours(config.closeHour, config.closeMinute, 0, 0);
       if (isAfter(end, limitTime)) {
-         alert("ขออภัย ไม่สามารถจองเกินเวลา 16:30 น. ได้");
+         alert(`ขออภัย ไม่สามารถจองเกินเวลา ${config.closeTime} น. ได้`);
          setIsBookingLoading(false);
          return;
       }
@@ -455,9 +454,9 @@ export default function DashboardPage() {
                    <div className="inline-flex items-center gap-2 bg-yellow-50 text-yellow-600 px-4 py-2 rounded-xl text-xs font-black border border-yellow-100">
                       <AlertTriangle size={14} /> หมายเหตุ: สามารถจองล่วงหน้าได้ไม่เกิน 15 วัน
                    </div>
-                   <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-xs font-black border border-slate-200">
-                      <Clock size={14} /> เปิดให้บริการ: จันทร์ - ศุกร์ (08:00 - 16:30 น.)
-                   </div>
+                    <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-xs font-black border border-slate-200">
+                       <Clock size={14} /> เปิดให้บริการ: จันทร์-ศุกร์ (08:00-19:00 น.) / เสาร์-อาทิตย์ (09:00-16:00 น.)
+                    </div>
                 </div>
              </div>
              <div className="flex gap-4">
@@ -506,7 +505,7 @@ export default function DashboardPage() {
                           {!isOp && isCurrentMonthDay ? (
                              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic leading-tight">ปิดให้บริการ</div>
                           ) : isAllowed && bookedCount > 0 ? (
-                             <div className="bg-red-50 text-red-500 rounded-xl px-3 py-1.5 text-[10px] sm:text-xs font-black border border-red-100 self-start shadow-sm">จองแล้ว {bookedCount}/9</div>
+                              <div className="bg-red-50 text-red-500 rounded-xl px-3 py-1.5 text-[10px] sm:text-xs font-black border border-red-100 self-start shadow-sm">จองแล้ว {bookedCount}/{getBookingConfig(day).slots.length}</div>
                           ) : isAllowed && isCurrentMonthDay ? (
                              <div className="bg-green-50 text-green-600 rounded-xl px-3 py-1.5 text-[10px] sm:text-xs font-black border border-green-100 self-start opacity-0 group-hover:opacity-100 transition-opacity">ห้องว่าง จองทันที</div>
                           ) : null}
@@ -532,14 +531,14 @@ export default function DashboardPage() {
               <div className="p-8 sm:p-10 max-h-[70vh] overflow-y-auto custom-scrollbar bg-slate-50/50">
                  {step === 1 ? (
                    <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                     {timeSlots.map((time) => {
+                     {(selectedDate ? getBookingConfig(selectedDate).slots : []).map((time) => {
                        const isBooked = isSlotBooked(selectedDate, time);
                        const isPast = isBefore(addHours(startOfDay(selectedDate), parseInt(time)), new Date());
                        return (
                          <div key={time} className={`flex items-center justify-between p-7 rounded-[2.5rem] border-4 transition-all ${isBooked ? 'bg-red-50 border-red-100' : isPast ? 'bg-slate-100 border-slate-200 opacity-60' : 'bg-white border-blue-50 hover:border-blue-200 shadow-sm'}`}>
                             <div className="flex items-center gap-6">
                                <div className={`w-16 h-16 rounded-3xl flex items-center justify-center font-black text-2xl shadow-inner ${isBooked ? 'bg-red-100 text-red-500' : isPast ? 'bg-slate-200 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>{time}</div>
-                               <p className="font-black text-slate-800 text-xl">{time} - {time === "15:30" ? "16:30" : `${parseInt(time)+1}:00`} น.</p>
+                               <p className="font-black text-slate-800 text-xl">{time} - {`${(parseInt(time)+1).toString().padStart(2, '0')}:00`} น.</p>
                             </div>
                             {isBooked ? <span className="text-red-500 font-black text-sm uppercase tracking-widest mr-4">ไม่ว่าง</span> : isPast ? <span className="text-slate-400 font-black text-sm uppercase tracking-widest mr-4">เลยเวลา</span> : 
                               <button onClick={() => { setSelectedTime(time); setStep(2); }} className="px-10 py-4 bg-blue-600 text-white rounded-3xl font-black text-sm hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-100">จอง</button>
@@ -555,10 +554,10 @@ export default function DashboardPage() {
                              <Clock className="text-blue-600" />
                              <div>
                                 <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">เวลาที่จอง</p>
-                                <p className="text-xl font-black text-blue-900">
-                                   {selectedTime} - {selectedTime === "15:30" ? "16:30" : `${parseInt(selectedTime || "0") + duration}:00`} น. 
-                                   <span className="ml-2 text-sm text-blue-400 font-bold">({duration} ชม.)</span>
-                                </p>
+                                 <p className="text-xl font-black text-blue-900">
+                                    {selectedTime} - {`${(parseInt(selectedTime || "0") + duration).toString().padStart(2, '0')}:00`} น. 
+                                    <span className="ml-2 text-sm text-blue-400 font-bold">({duration} ชม.)</span>
+                                 </p>
                              </div>
                           </div>
                           <button onClick={() => setStep(1)} className="text-blue-600 font-black text-sm hover:underline">เปลี่ยนเวลา</button>
@@ -571,7 +570,8 @@ export default function DashboardPage() {
                                 // Check if next slot is available for 2hr option
                                 const h = parseInt(selectedTime || "0");
                                 const nextSlotBooked = d === 2 && isSlotBooked(selectedDate, `${(h+1).toString().padStart(2, '0')}:00`);
-                                const isFinalSlot = d === 2 && (h >= 15); // 15:00 (+2 = 17:00 NO), 15:30 (+2 = 17:30 NO)
+                                const config = getBookingConfig(selectedDate);
+                                const isFinalSlot = h + d > config.closeHour;
 
                                 return (
                                    <button
@@ -684,7 +684,7 @@ export default function DashboardPage() {
            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
               <header className="p-10 bg-blue-600 text-white">
                  <div className="flex items-center gap-3 mb-6 font-black uppercase tracking-widest text-xl">ระเบียบการเข้าใช้บริการ</div>
-                 <h2 className="text-3xl font-black leading-tight">ห้องกิจกรรมนันทนาการเปิดให้บริการตั้งแต่วันจันทร์ถึงวันศุกร์ 8:00 น. - 16:30 น.</h2>
+                 <h2 className="text-3xl font-black leading-tight">วันจันทร์-ศุกร์ เปิดให้บริการเวลา 08:00 น. - 19:00 น. และวันเสาร์-อาทิตย์ เปิดให้บริการเวลา 09:00 น. - 16:00 น.</h2>
               </header>
               
               <div className="p-10 overflow-y-auto custom-scrollbar flex-1">

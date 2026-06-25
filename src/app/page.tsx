@@ -48,7 +48,7 @@ import { db } from "@/lib/firebase";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { isOperationalDay } from "@/lib/holidays";
+import { isOperationalDay, getBookingConfig } from "@/lib/holidays";
 
 export default function LandingPage() {
   const { user, firebaseUser, loading: authLoading, signInWithGoogle } = useAuth();
@@ -60,7 +60,7 @@ export default function LandingPage() {
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const timeSlots = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "15:30"];
+
 
   // Policy Constants
   const maxBookingDays = 15;
@@ -122,7 +122,7 @@ export default function LandingPage() {
     const [h, m] = timeStr.split(':').map(Number);
     const slotStart = new Date(date);
     slotStart.setHours(h, m, 0, 0);
-    const slotEnd = addHours(slotStart, slotStart.getHours() === 15 && slotStart.getMinutes() === 30 ? 1 : 1); // Still 1 hour, but ends at 16:30
+    const slotEnd = addHours(slotStart, 1);
     return getDayBookings(date).some((b: any) => (slotStart >= b.start && slotStart < b.end) || (slotEnd > b.start && slotEnd <= b.end));
   };
 
@@ -177,7 +177,7 @@ export default function LandingPage() {
                  ศูนย์นันทนาการ <br /> องค์การบริหารส่วนจังหวัดพะเยา <br /><span className="text-blue-600">ยินดีต้อนรับ</span>
               </h1>
               <p className="text-xl sm:text-2xl text-slate-500 font-bold leading-relaxed mb-12 max-w-3xl mx-auto">
-                 ห้องกิจกรรมนันทนาการ เปิดทำการ 08:00 - 16.30 น. <br className="hidden sm:block" /> หยุดทำการ เสาร์-อาทิตย์ และวันหยุดนักขัตฤกษ์
+                 วันจันทร์-ศุกร์ เปิดให้บริการ 08:00 - 19:00 น. <br /> วันเสาร์-อาทิตย์ เปิดให้บริการ 09:00 - 16:00 น. <br className="hidden sm:block" /> หยุดทำการในวันหยุดนักขัตฤกษ์
               </p>
               <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
                  {!firebaseUser ? (
@@ -223,7 +223,7 @@ export default function LandingPage() {
                     <AlertTriangle size={14} /> หมายเหตุ: สามารถจองล่วงหน้าได้ไม่เกิน 15 วัน
                  </div>
                  <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-[10px] font-black border border-slate-200">
-                    <Clock size={14} /> เปิดให้บริการ: จันทร์ - ศุกร์ (08:00 - 16:30 น.)
+                    <Clock size={14} /> เปิดให้บริการ: จันทร์-ศุกร์ (08:00-19:00 น.) / เสาร์-อาทิตย์ (09:00-16:00 น.)
                  </div>
               </div>
               <div className="w-20 h-1.5 bg-blue-600 mx-auto mt-6 rounded-full"></div>
@@ -285,15 +285,16 @@ export default function LandingPage() {
                       <span className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg mb-4 transition-all ${isToday ? 'bg-blue-600 text-white shadow-xl shadow-blue-200 ring-4 ring-blue-50' : isAllowed ? 'text-[#1A1A1A] group-hover:text-blue-600 group-hover:scale-110' : 'text-[#D1D5DB]'}`}>{format(day, 'd')}</span>
                       
                       <div className="flex-1 space-y-2">
-                        {isAllowed && isCurrentMonthDay && (
-                           bookedCount >= 9 ? (
-                              <div className="bg-red-50 text-red-500 rounded-xl px-2 py-1 text-[10px] font-black border border-red-100 text-center">เต็มทุกช่วง</div>
-                           ) : bookedCount > 0 ? (
-                              <div className="bg-blue-50 text-blue-600 rounded-xl px-2 py-1 text-[10px] font-black border border-blue-100 text-center italic">จองแล้ว {bookedCount}/9</div>
-                           ) : (
-                              <div className="bg-green-50 text-green-600 rounded-xl px-2 py-1 text-[10px] font-black border border-green-100 text-center opacity-0 group-hover:opacity-100">ว่าง (จองเลย)</div>
-                           )
-                        )}
+                        {isAllowed && isCurrentMonthDay && (() => {
+                            const totalSlots = getBookingConfig(day).slots.length;
+                            return bookedCount >= totalSlots ? (
+                               <div className="bg-red-50 text-red-500 rounded-xl px-2 py-1 text-[10px] font-black border border-red-100 text-center">เต็มทุกช่วง</div>
+                            ) : bookedCount > 0 ? (
+                               <div className="bg-blue-50 text-blue-600 rounded-xl px-2 py-1 text-[10px] font-black border border-blue-100 text-center italic">จองแล้ว {bookedCount}/{totalSlots}</div>
+                            ) : (
+                               <div className="bg-green-50 text-green-600 rounded-xl px-2 py-1 text-[10px] font-black border border-green-100 text-center opacity-0 group-hover:opacity-100">ว่าง (จองเลย)</div>
+                            );
+                         })()}
                       </div>
                     </div>
                   );
@@ -376,13 +377,13 @@ export default function LandingPage() {
               </header>
               <div className="p-10 max-h-[60vh] overflow-y-auto custom-scrollbar bg-slate-50/50">
                  <div className="grid grid-cols-1 gap-4">
-                   {timeSlots.map((time) => {
+                    {(selectedDate ? getBookingConfig(selectedDate).slots : []).map((time) => {
                      const isBooked = isSlotBooked(selectedDate, time);
                      return (
                        <div key={time} className={`flex items-center justify-between p-7 rounded-[2.5rem] border-4 transition-all ${isBooked ? 'bg-red-50 border-red-100' : 'bg-white border-blue-50 hover:border-blue-200 shadow-sm'}`}>
                           <div className="flex items-center gap-6">
                              <div className={`w-16 h-16 rounded-3xl flex items-center justify-center font-black text-2xl ${isBooked ? 'bg-red-100 text-red-500' : 'bg-blue-50 text-blue-600'}`}>{time}</div>
-                             <p className="font-black text-slate-800 text-xl">{time} - {time === "15:30" ? "16:30" : `${parseInt(time)+1}:00`} น.</p>
+                             <p className="font-black text-slate-800 text-xl">{time} - {`${(parseInt(time)+1).toString().padStart(2, '0')}:00`} น.</p>
                           </div>
                           {isBooked ? (
                              <div className="bg-red-50 text-red-500 px-6 py-2 rounded-2xl font-black text-sm uppercase tracking-widest border border-red-100 italic">ไม่ว่าง</div>
