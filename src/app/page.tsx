@@ -364,6 +364,10 @@ export default function LandingPage() {
                <p className="text-slate-400 font-bold text-sm">เลขที่ 1 ถนนพหลโยธิน ต.เวียง <br /> อ.เมือง จ.พะเยา 56000</p>
             </div>
          </div>
+         <div className="max-w-7xl mx-auto border-t border-white/10 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm font-bold gap-4">
+            <p>© {new Date().getFullYear()} Rec Center Phayao. All rights reserved.</p>
+            <p>ผู้จัดทำเว็บไซต์: นายณภัทร จารุโรจนภัทร และ นายสมันตา ดีงามเลิศ</p>
+         </div>
       </footer>
 
       {/* Read-Only Modal for Public Viewer */}
