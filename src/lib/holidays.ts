@@ -10,6 +10,8 @@ export const PUBLIC_HOLIDAYS = [
   "2026-05-04", // Coronation Day
   "2026-06-03", // Queen's Birthday
   "2026-07-28", // King's Birthday
+  "2026-07-29", // Special Holiday (Blocked)
+  "2026-07-30", // Special Holiday (Blocked)
   "2026-08-12", // Mother's Day
   "2026-10-13", // Rama IX Memorial
   "2026-10-23", // Chulalongkorn Day
