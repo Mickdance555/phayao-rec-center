@@ -177,7 +177,7 @@ export default function LandingPage() {
                  ศูนย์นันทนาการ <br /> องค์การบริหารส่วนจังหวัดพะเยา <br /><span className="text-blue-600">ยินดีต้อนรับ</span>
               </h1>
               <p className="text-xl sm:text-2xl text-slate-500 font-bold leading-relaxed mb-12 max-w-3xl mx-auto">
-                 ห้องกิจกรรมนันทนาการ เปิดทำการ 08:00 - 17:00 น. <br className="hidden sm:block" /> หยุดทำการ เสาร์-อาทิตย์ และวันหยุดนักขัตฤกษ์
+                 ห้องกิจกรรมนันทนาการ เปิดทำการ จันทร์-ศุกร์ 08.00น.-16.30น. <br className="hidden sm:block" /> หยุดทำการ เสาร์-อาทิตย์ และวันหยุดนักขัตฤกษ์
               </p>
               <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
                  {!firebaseUser ? (
@@ -223,7 +223,7 @@ export default function LandingPage() {
                     <AlertTriangle size={14} /> หมายเหตุ: สามารถจองล่วงหน้าได้ไม่เกิน 15 วัน
                  </div>
                  <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-[10px] font-black border border-slate-200">
-                    <Clock size={14} /> เปิดให้บริการ: จันทร์ - ศุกร์ (08:00 - 17:00 น.)
+                    <Clock size={14} /> เปิดให้บริการ: จันทร์-ศุกร์ 08.00น.-16.30น.
                  </div>
               </div>
               <div className="w-20 h-1.5 bg-blue-600 mx-auto mt-6 rounded-full"></div>

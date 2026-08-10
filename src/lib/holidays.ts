@@ -47,9 +47,9 @@ export const getBookingConfig = (date: Date): BookingConfig => {
   }
   return {
     openTime: "08:00",
-    closeTime: "17:00",
-    closeHour: 17,
-    closeMinute: 0,
-    slots: ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"]
+    closeTime: "16:30",
+    closeHour: 16,
+    closeMinute: 30,
+    slots: ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00"]
   };
 };

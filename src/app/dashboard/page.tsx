@@ -455,7 +455,7 @@ export default function DashboardPage() {
                       <AlertTriangle size={14} /> หมายเหตุ: สามารถจองล่วงหน้าได้ไม่เกิน 15 วัน
                    </div>
                     <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-xs font-black border border-slate-200">
-                       <Clock size={14} /> เปิดให้บริการ: จันทร์ - ศุกร์ (08:00 - 17:00 น.)
+                       <Clock size={14} /> เปิดให้บริการ: จันทร์ - ศุกร์ (08:00 - 16:30 น.)
                     </div>
                 </div>
              </div>
@@ -684,7 +684,7 @@ export default function DashboardPage() {
            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
               <header className="p-10 bg-blue-600 text-white">
                  <div className="flex items-center gap-3 mb-6 font-black uppercase tracking-widest text-xl">ระเบียบการเข้าใช้บริการ</div>
-                 <h2 className="text-3xl font-black leading-tight">ห้องกิจกรรมนันทนาการเปิดให้บริการตั้งแต่วันจันทร์ถึงวันศุกร์ 8:00 น. - 17:00 น.</h2>
+                 <h2 className="text-3xl font-black leading-tight">ห้องกิจกรรมนันทนาการเปิดให้บริการตั้งแต่วันจันทร์ถึงวันศุกร์ 8:00 น. - 16:30 น.</h2>
               </header>
               
               <div className="p-10 overflow-y-auto custom-scrollbar flex-1">
