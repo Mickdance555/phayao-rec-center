@@ -23,6 +23,7 @@ export const PUBLIC_HOLIDAYS = [
 export const isOperationalDay = (date: Date) => {
   if (isWeekend(date)) return false;
   const dateStr = format(date, 'yyyy-MM-dd');
+  if (dateStr >= '2026-09-01' && dateStr <= '2026-09-30') return false;
   if (PUBLIC_HOLIDAYS.includes(dateStr)) return false;
   return true;
 };
@@ -36,7 +37,8 @@ export interface BookingConfig {
 }
 
 export const getBookingConfig = (date: Date): BookingConfig => {
-  if (isWeekend(date)) {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  if (isWeekend(date) || (dateStr >= '2026-09-01' && dateStr <= '2026-09-30')) {
     return {
       openTime: "09:00",
       closeTime: "16:00",

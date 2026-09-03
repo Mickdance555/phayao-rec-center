@@ -49,6 +49,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { isOperationalDay, getBookingConfig } from "@/lib/holidays";
+import AnnouncementModal from "@/components/AnnouncementModal";
 
 export default function LandingPage() {
   const { user, firebaseUser, loading: authLoading, signInWithGoogle } = useAuth();
@@ -133,6 +134,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
+      <AnnouncementModal />
       <Navbar />
 
       {/* Hero Section */}

@@ -41,6 +41,7 @@ import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isOperationalDay, getBookingConfig } from "@/lib/holidays";
+import AnnouncementModal from "@/components/AnnouncementModal";
 
 export default function DashboardPage() {
   const { user, firebaseUser, loading: authLoading, signInWithGoogle, logout } = useAuth();
@@ -354,6 +355,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
+      <AnnouncementModal />
       <Navbar />
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-12 sm:px-6 lg:px-8 mt-16 animate-in fade-in duration-700">
           

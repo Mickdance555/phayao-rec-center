@@ -27,6 +27,7 @@ import { format, addHours, startOfDay, endOfDay, isBefore, parse, isAfter } from
 import { th } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { isOperationalDay, getBookingConfig } from "@/lib/holidays";
+import AnnouncementModal from "@/components/AnnouncementModal";
 
 export default function BookingPage() {
   const { user, loading: authLoading } = useAuth();
@@ -89,6 +90,10 @@ export default function BookingPage() {
   };
 
   const checkOverlap = () => {
+    if (selectedDate >= '2026-09-01' && selectedDate <= '2026-09-30') {
+      return "ปิดระบบการจองห้องซ้อมวันที่ 1 - 30 กันยายน 2569 เนื่องจากอุทยานวิทยาศาสจร์ได้มีการปรับปรุงภายในใหม่ หากมีการเปลี่ยนแปลงจะประกาศแจ้งให้ทราบอีกครั้งผ่านหน้าเว็บไซต์";
+    }
+
     const [y, m, d] = selectedDate.split('-').map(Number);
     const dateObj = new Date(y, m - 1, d);
     if (!isOperationalDay(dateObj)) {
@@ -215,6 +220,7 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      <AnnouncementModal />
       <Navbar />
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
