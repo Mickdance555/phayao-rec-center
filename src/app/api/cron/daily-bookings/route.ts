@@ -9,7 +9,19 @@ function getAdminDb() {
   if (!getApps().length) {
     const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     if (!raw) throw new Error("Missing FIREBASE_SERVICE_ACCOUNT_KEY");
-    initializeApp({ credential: cert(JSON.parse(raw)) });
+    
+    let creds;
+    try {
+      creds = typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch (e: any) {
+      throw new Error(`Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY: ${e.message}`);
+    }
+
+    if (creds.private_key) {
+      creds.private_key = creds.private_key.replace(/\\n/g, "\n");
+    }
+
+    initializeApp({ credential: cert(creds) });
   }
   return getFirestore();
 }
@@ -69,13 +81,23 @@ function buildEmailHtml(label: string, bookings: any[]) {
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const authHeader = request.headers.get("authorization");
+  const url = new URL(request.url);
+  const keyParam = url.searchParams.get("key");
+
+  const isAuthorized = 
+    (secret && authHeader === `Bearer ${secret}`) ||
+    (secret && keyParam === secret);
+
+  if (!isAuthorized) {
+    return Response.json({ error: "Unauthorized: Invalid or missing authorization" }, { status: 401 });
   }
 
   try {
+    console.log("[Cron] Starting daily booking email job...");
     const db = getAdminDb();
     const { start, end, label } = getTomorrowRangeBangkok();
+    console.log(`[Cron] Target date: ${label} (${start.toISOString()} to ${end.toISOString()})`);
 
     const [bookingSnap, adminSnap] = await Promise.all([
       db.collection("bookings")
@@ -93,31 +115,59 @@ export async function GET(request: Request) {
       .filter((b: any) => b.status !== "cancelled")
       .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-    const recipients = [...new Set(adminSnap.docs.map((d) => d.data().email).filter(Boolean))] as string[];
+    let recipients = [...new Set(adminSnap.docs.map((d) => d.data().email).filter(Boolean))] as string[];
+    console.log(`[Cron] Found ${recipients.length} admin emails from Firestore:`, recipients);
+
+    // Fallback if no admin emails found in database
     if (!recipients.length) {
-      return Response.json({ ok: false, error: "No admin emails found" }, { status: 500 });
+      console.warn("[Cron] No admins found with role == 'admin' in Firestore, using fallback super admin email");
+      recipients = ["j.naphat.mick@gmail.com"];
     }
+
+    const emailFrom = process.env.EMAIL_FROM || "Rec Center Phayao <onboarding@resend.dev>";
+    console.log(`[Cron] Sending email from ${emailFrom} to ${recipients.join(", ")}...`);
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || "Rec Center Phayao <onboarding@resend.dev>",
+        from: emailFrom,
         to: recipients,
         subject: `[ตารางจองห้อง] ${label} — ${bookings.length} รายการ`,
         html: buildEmailHtml(label, bookings),
       }),
     });
 
+    const resText = await res.text();
+    console.log(`[Cron] Resend API status: ${res.status}, response:`, resText);
+
     if (!res.ok) {
-      const detail = await res.text();
-      console.error("Resend error:", detail);
-      return Response.json({ ok: false, error: "Email send failed", detail }, { status: 502 });
+      return Response.json({ 
+        ok: false, 
+        error: "Resend API rejected the email", 
+        status: res.status, 
+        detail: resText 
+      }, { status: 502 });
     }
 
-    return Response.json({ ok: true, date: label, bookings: bookings.length, recipients: recipients.length });
+    let parsedResponse = {};
+    try {
+      parsedResponse = JSON.parse(resText);
+    } catch {}
+
+    return Response.json({ 
+      ok: true, 
+      date: label, 
+      bookingsCount: bookings.length, 
+      recipients, 
+      resend: parsedResponse 
+    });
   } catch (error: any) {
-    console.error("Daily booking email error:", error);
-    return Response.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[Cron] Daily booking email error:", error);
+    return Response.json({ 
+      ok: false, 
+      error: error.message || "Unknown error", 
+      stack: error.stack 
+    }, { status: 500 });
   }
 }
