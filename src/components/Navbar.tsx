@@ -83,6 +83,8 @@ export default function Navbar() {
             </div>
           )}
 
+          <div className="h-6 w-[1px] bg-slate-200 mx-2 hidden sm:block opacity-50"></div>
+
           {firebaseUser ? (
             <div className="flex items-center gap-4">
                {user && user.status === "active" && (
