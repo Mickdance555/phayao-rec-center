@@ -40,7 +40,7 @@ export default function AnnouncementModal() {
           <div className="bg-amber-50/80 border-2 border-amber-200/60 rounded-3xl p-6 flex items-start gap-4">
             <AlertTriangle className="text-amber-600 shrink-0 mt-1" size={24} />
             <p className="text-slate-800 font-bold text-base sm:text-lg leading-relaxed">
-              ปิดระบบการจองห้องซ้อมวันที่ 1 - 30 กันยายน 2569 เนื่องจากอุทยานวิทยาศาสจร์ได้มีการปรับปรุงภายในใหม่ หากมีการเปลี่ยนแปลงจะประกาศแจ้งให้ทราบอีกครั้งผ่านหน้าเว็บไซต์
+              ปิดระบบการจองห้องซ้อมวันที่ 1 - 31 ตุลาคม 2569 เนื่องจากอุทยานวิทยาศาสจร์ได้มีการปรับปรุงภายในใหม่ หากมีการเปลี่ยนแปลงจะประกาศแจ้งให้ทราบอีกครั้งผ่านหน้าเว็บไซต์
             </p>
           </div>
 
