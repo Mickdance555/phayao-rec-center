@@ -126,15 +126,24 @@ export async function GET(request: Request) {
     }
 
     const emailFrom = process.env.EMAIL_FROM || "Rec Center Phayao <onboarding@resend.dev>";
+    
+    // Resend sandbox limitation: onboarding@resend.dev only allows sending to the account owner
+    const isSandbox = emailFrom.includes("resend.dev");
+    if (isSandbox) {
+      console.warn("[Cron] Running in Resend Sandbox mode (onboarding@resend.dev). Restricting to account owner j.naphat.mick@gmail.com to prevent Resend 403 error.");
+      recipients = ["j.naphat.mick@gmail.com"];
+    }
+
     console.log(`[Cron] Sending email from ${emailFrom} to ${recipients.join(", ")}...`);
 
+    const subjectPrefix = isSandbox ? "[ทดสอบระบบจองห้อง]" : "[ตารางจองห้อง]";
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: emailFrom,
         to: recipients,
-        subject: `[ตารางจองห้อง] ${label} — ${bookings.length} รายการ`,
+        subject: `${subjectPrefix} ${label} — ${bookings.length} รายการ`,
         html: buildEmailHtml(label, bookings),
       }),
     });
